@@ -96,6 +96,23 @@ student.db:
 
 > `num_pages` 和 `first_free_page_no` 在每次新增页面或页面写满时都会改变。但**改变的是内存中 `RmFileHandle::file_hdr_` 的副本**，磁盘上第 0 页的文件头只在 close/flush/checkpoint 时才被覆盖写入——这和脏页的逻辑完全一样：内存中改多次，磁盘上延迟批量写回。
 
+## 在整体架构中的位置
+
+文件头虽然也落在磁盘文件上，但和普通数据页走的是两条完全不同的路径：
+
+```
+记录层 (RmManager) / 索引层 (IxManager)
+  │
+  ├─ 数据页：走 Buffer Pool → Disk Manager → 磁盘第 1 页+
+  │
+  └─ 文件头：直接走 Disk Manager → 磁盘第 0 页（绕过 Buffer Pool）
+```
+
+- **对上**：被 `RmFileHandle`（记录层）和 `IxFileHandle`（索引层）持有，在创建表/索引时初始化、运行中修改、关闭时写回
+- **对下**：依赖 `DiskManager::write_page(fd, 0, ...)` 持久化，不经过 Buffer Pool，不走页替换算法
+
+之所以绕过缓冲池，是因为文件头只在创建/关闭/检查点三个时机读写，频率极低，没必要占用宝贵的缓冲池 frame。
+
 ## 小结
 
 - 文件头独占第 0 页，第 1 页起才是真正的数据

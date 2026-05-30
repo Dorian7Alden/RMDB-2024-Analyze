@@ -124,6 +124,13 @@ update_page(&pages_[7], {fd:3, page_no:5}, 7)
 输出:  Page* (内存中的页面指针，pin_count 已 +1)
 ```
 
+> **`latch_` 与 `lock` 是什么？**
+>
+> `latch_` 是 `std::mutex` 类型的互斥锁（`buffer_pool_manager.h:34`），保证同一时刻只有一个线程能进入方法体，其他线程在外等待。
+> `std::scoped_lock lock{latch_}` 是 C++17 的 RAII 锁包装——构造时自动加锁，函数结束（return 或抛异常）时自动解锁，不会忘记释放。相当于"进门自动锁门，出门自动开门"。
+>
+> 本节只需知道：每个方法开头那行 `scoped_lock` 就是拿锁，方法结束时自动放锁。多线程问题留到多实例版本再深入。
+
 ```cpp
 // buffer_pool_manager.cpp:72-104（框架版本）
 Page* BufferPoolManager::fetch_page(PageId page_id) {

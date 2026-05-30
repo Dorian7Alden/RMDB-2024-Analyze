@@ -26,8 +26,8 @@ class BufferPoolManager {
 ```
 pool_size_ = 65536
 pages_ = [Page_0, Page_1, Page_2, ..., Page_65535]   ← 65536 个空 Page
-page_table_ = {}                                       ← 空的，还没缓存任何页
-free_list_ = [0, 1, 2, ..., 65535]                    ← 所有 frame 都是空闲的
+page_table_ = {}                                     ← 空的，还没缓存任何页
+free_list_ = [0, 1, 2, ..., 65535]                   ← 所有 frame 都是空闲的
 ```
 
 ## 核心方法实现
@@ -143,6 +143,7 @@ Page* BufferPoolManager::fetch_page(PageId page_id) {
         return nullptr;                      // 找不到，返回空
     }
 
+    // victim 找到了
     Page* page = &pages_[frame_id];
     update_page(page, page_id, frame_id);    // 替换旧页面
 
@@ -178,6 +179,10 @@ Page* BufferPoolManager::fetch_page(PageId page_id) {
 > - `{latch_}` 是花括号初始化（列表初始化），等价于 `std::scoped_lock lock(latch_);`，两种写法完全一样，只是代码风格偏好
 >
 > 完整的"翻译"：**创建一个 `scoped_lock` 类型的对象 `lock`，把 `latch_` 传进去让它管着。** 这个对象活着的时候锁就持有着，对象销毁时（出了作用域）自动释放锁。
+>
+> **问：`latch_` 和 `lock` 必须是配合使用的固定搭配吗？**
+>
+> 不是。`latch_` 只是这个项目给 `std::mutex` 起的变量名（叫 `mtx_`、`mutex_` 也一样），`lock` 也只是 `scoped_lock` 对象的变量名。它们在这个项目里总是一起出现，是因为 `scoped_lock` 是管理互斥锁的最佳实践，但语法上并不强制——完全可以不用 `scoped_lock`，手动调用 `latch_.lock()` 和 `latch_.unlock()`，只是那样容易忘记解锁或在异常时泄漏锁。
 
 **实例**：扫描 student 表，fetch_page({fd:3, page_no:0})：
 
@@ -231,7 +236,7 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
 ```
 线程 A: fetch_page({fd:3, page_no:0})  ─┐
 线程 B: fetch_page({fd:4, page_no:0})  ─┤ 排队等待，即使访问不同文件
-线程 C: unpin_page(...)                 ─┤
+线程 C: unpin_page(...)                ─┤
 线程 D: fetch_page({fd:3, page_no:1})  ─┘
 ```
 

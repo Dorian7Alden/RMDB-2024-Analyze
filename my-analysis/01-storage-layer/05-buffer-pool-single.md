@@ -37,8 +37,9 @@ free_list_ = [0, 1, 2, ..., 65535]                    ← 所有 frame 都是空
 缓冲池满时，需要找一个"受害者"frame 来替换。优先从 free_list_ 取，没有空闲才找 Replacer：
 
 ```
-输入:  无（通过指针参数返回结果）
-输出:  frame_id_t* (被选中的 frame 编号), bool (是否找到)
+输入:  frame_id_t* frame_id — 输出参数，用于传出被选中的 frame 编号
+      内部读取 free_list_ 和 replacer_ 的状态（隐式输入）
+输出:  bool — true 找到可用 frame / false 无可用 frame
 ```
 
 ```cpp
@@ -55,6 +56,17 @@ bool BufferPoolManager::find_victim_page(frame_id_t* frame_id) {
     return true;
 }
 ```
+
+> **为什么参数是 `frame_id_t*`，却说"没有输入"？**
+>
+> 这里的 `frame_id` 参数是 C++ 中常见的**输出参数**写法——调用方传一个变量的地址进来，函数把结果写进去。它不是真正意义上的"输入数据"，只是借指针往外传结果。真正决定选哪个 frame 的信息来自 `free_list_` 和 `replacer_` 这两个内部成员变量（隐式输入）。
+>
+> ```cpp
+> // 调用方的视角：
+> frame_id_t victim_id;
+> find_victim_page(&victim_id);  // &victim_id 是传地址，让函数往里写结果
+> // 调用后 victim_id 就是被选中的 frame 编号
+> ```
 
 ### update_page
 

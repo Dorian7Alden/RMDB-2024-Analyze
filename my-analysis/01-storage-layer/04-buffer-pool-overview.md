@@ -23,15 +23,20 @@ Executor 遍历 student 表 1000 条记录
 
 ### 帧（Frame）与页（Page）的关系
 
-```
-缓冲池（内存中的大数组）
-┌─────────┬─────────┬─────────┬─────────┬─────────┐
-│ Frame 0 │ Frame 1 │ Frame 2 │ Frame 3 │  ...    │  ← 共 BUFFER_POOL_SIZE 个 frame
-│  Page   │  Page   │  Page   │  Page   │         │
-└─────────┴─────────┴─────────┴─────────┴─────────┘
-     ↑                    ↑
-  存了 student 表       存了 course 表
-  第 0 页                第 3 页
+```mermaid
+flowchart LR
+    subgraph BP["BufferPoolInstance 缓冲池"]
+        subgraph pages["pages_ 数组 共 65536 个 frame"]
+            direction LR
+            F0["Frame 0"]
+            F1["Frame 1"]
+            F2["Frame 2"]
+            F3["Frame 3"]
+            FN["..."]
+        end
+    end
+    F0 -.->|"存了"| STU["student 表第 0 页"]
+    F3 -.->|"存了"| COU["course 表第 3 页"]
 ```
 
 - **帧（Frame）**：缓冲池数组的一个槽位，对应内存中一个 Page 对象
@@ -224,6 +229,23 @@ Page* BufferPoolInstance::fetch_page(PageId page_id) {
 | `free_list_` | `list<frame_id_t>` | 空闲 Frame 编号链表 |
 | `replacer_` | `Replacer*` | 页面替换策略（LRU），决定淘汰哪个非空闲页 |
 
+四个结构之间的交互关系：
+
+```mermaid
+flowchart LR
+    subgraph BPI["BufferPoolInstance"]
+        FL["free_list_ 空闲 frame 链表"]
+        pages["pages_ Page 数组"]
+        PT["page_table_ 页号到 frame 映射"]
+        RP["replacer_ LRU 替换策略"]
+    end
+
+    FL -->|"取空闲 frame"| pages
+    PT -->|"frame 编号"| pages
+    pages -->|"淘汰时通知"| RP
+    RP -->|"选出 victim frame"| pages
+```
+
 ## 实例
 
 以 student 表为例：页面大小 4KB，每条记录约 100 字节，一页大约放 40 条记录。1000 条记录共 25 页（page_no 0 到 24）。
@@ -241,26 +263,33 @@ flowchart TD
     G --> H["读完该页 unpin pin_count 归零"]
     H --> D
 
+    N1["阶段一 消耗: 缓冲池空位多 来一页装一页"]:::sticky
+    N2["阶段二 置换: free_list 耗尽 踢旧换新循环"]:::sticky
+    N1 -.-> C
+    N2 -.-> D
+
     classDef idle fill:#c8e6c9,stroke:#2e7d32
     classDef consume fill:#bbdefb,stroke:#1565c0
     classDef decide fill:#fff9c4,stroke:#f9a825
     classDef replacer fill:#e1bee7,stroke:#7b1fa2
     classDef disk fill:#ffcdd2,stroke:#c62828
     classDef unpin fill:#b2dfdb,stroke:#00695c
+    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
     class A idle
     class B,G consume
     class C,E decide
     class D replacer
     class F disk
     class H unpin
+    class N1,N2 sticky
 ```
 
-> **图例：** <span style="color:#2e7d32">■</span> 初始空闲 &nbsp; <span style="color:#1565c0">■</span> 消耗/装入 &nbsp; <span style="color:#f9a825">■</span> 判断分支 &nbsp; <span style="color:#7b1fa2">■</span> Replacer 决策 &nbsp; <span style="color:#c62828">■</span> 磁盘 I/O &nbsp; <span style="color:#00695c">■</span> unpin 释放
+> **图例：** <span style="color:#2e7d32">■</span> 初始空闲 &nbsp; <span style="color:#1565c0">■</span> 消耗/装入 &nbsp; <span style="color:#f9a825">■</span> 判断分支 &nbsp; <span style="color:#7b1fa2">■</span> Replacer 决策 &nbsp; <span style="color:#c62828">■</span> 磁盘 I/O &nbsp; <span style="color:#00695c">■</span> unpin 释放 &nbsp; <span style="border:1px dashed #f9a825;background:#fff9c4">□</span> 备注说明
 
-整个过程分两个阶段：
+整个过程分两个阶段（对应图中两个虚线便利贴）：
 
-1. **消耗阶段**（左侧循环）：持续从 `free_list_` 取空闲 frame，缓冲池有大量空位，来一页装一页
-2. **置换阶段**（右侧循环）：`free_list_` 耗尽后进入稳态，Replacer 不断踢旧页、换新页，有限 65536 个 frame 可以处理任意多的页面访问
+1. **消耗阶段**（上方便利贴 → 菱形 C）：持续从 `free_list_` 取空闲 frame，缓冲池有大量空位，来一页装一页
+2. **置换阶段**（下方便利贴 → 菱形 D）：`free_list_` 耗尽后进入稳态，Replacer 不断踢旧页、换新页，有限 65536 个 frame 可以处理任意多的页面访问
 
 ## 小结
 

@@ -70,7 +70,22 @@ class BufferPoolInstance {
 };
 ```
 
-每个 Instance 内部的 `fetch_page`、`unpin_page`、`find_victim_page`、`update_page` 逻辑与单实例版本几乎一致——只是 scope 从"全局"变成了"本分区"。
+> **为什么多实例版本改用 ClockReplacer？**
+>
+> `ClockReplacer`（时钟替换器）和 `LRUReplacer` 的目的完全一样——缓冲池满时选一个"受害者"frame 淘汰。区别在于实现方式：
+>
+> | | LRUReplacer（框架） | ClockReplacer（参考实现） |
+> |---|---|---|
+> | 数据结构 | 双向链表 + 哈希表 | 两个固定数组 + 一个游标指针 |
+> | 选 victim | 取链表尾部（最久未用），O(1) | 游标循环扫描，给"二次机会"，近似 LRU |
+> | 内存分配 | 动态（链表节点随 unpin 增减） | 静态（数组大小 = 分区帧数，编译期确定） |
+> | 内部锁 | 自带 `std::mutex` | 无锁（Instance 的 `latch_` 已保护） |
+>
+> 核心思路：LRU 用精确排序（链表头部=最近用过，尾部=最久未用），但需要动态分配链表节点；Clock 用近似策略——一个游标循环扫描所有 frame，遇到 `pin_ == true` 的给它"第二次机会"（清零后跳过），遇到 `pin_ == false` 的就淘汰。Clock 虽然不那么精确，但**零动态分配、零内部锁开销**，更契合多实例版本"每个小池子独立加锁、分区固定"的架构。
+>
+> 详细实现留到 [07. LRU 页面替换](./07-buffer-pool-lru.md) 展开。
+>
+> 每个 Instance 内部的 `fetch_page`、`unpin_page`、`find_victim_page`、`update_page` 逻辑与单实例版本几乎一致——只是 scope 从"全局"变成了"本分区"。
 
 ## 架构变化总结
 
@@ -81,9 +96,9 @@ BufferPoolManager                       │
   │  pages_[0..65535]          ┌────────┼────────┬──────────┐
   │  page_table_               │        │        │          │
   │  free_list_          Instance_0  Instance_1  ...  Instance_15
-  │  latch_ (全局锁!)      │ 4096页   │ 4096页         │ 4096页
-  │                        │ 自己的锁  │ 自己的锁        │ 自己的锁
-  └─ 所有请求串行          └─ 并行！────┴───────────────┘
+  │  latch_ (全局锁!)      │ 4096页    │ 4096页         │ 4096页
+  │                       │ 自己的锁   │ 自己的锁        │ 自己的锁
+  └─ 所有请求串行           └─ 并行！────┴───────────────┘
 ```
 
 ## 多实例并发的实际效果

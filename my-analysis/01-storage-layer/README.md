@@ -27,6 +27,7 @@
 | 08 | [Page Guard](./08-page-guard.md) | RAII 页面守卫：自动 unpin | **核心** |
 | 09 | [RWLatch 读写锁](./09-rwlatch.md) | 页面级读写锁 | **核心** |
 | 10 | [存储层实例串讲](./10-storage-structure-example.md) | 用具体实例串联所有组件，建立整体认知 | 综合 |
+| 11 | [存储层总结](./11-storage-layer-summary.md) | 各模块框架状态与核心学习点汇总 | 总结 |
 
 ## 存储层在整体架构中的位置
 

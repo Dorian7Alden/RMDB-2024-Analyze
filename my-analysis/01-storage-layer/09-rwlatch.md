@@ -128,27 +128,8 @@ class Page {
 - 与 Page Guard 配合：Guard 在构造时自动加锁，析构时自动释放锁和 unpin
 - 框架中完全没有这个模块，参考实现**从零实现**
 
----
-
-## 本章总结
-
-存储层 8 个小节覆盖了数据如何从磁盘到内存的完整链路：
-
-```
-Disk Manager → Page → Buffer Pool → Replacer → Page Guard → RWLatch
-   (磁盘读写)   (数据载体)  (缓存管理)  (页面淘汰)   (RAII安全)  (并发控制)
-```
-
-| 模块 | 框架状态 | 核心学习点 |
-|------|---------|-----------|
-| Disk Manager | 已完整实现 | 偏移量 = page_no × PAGE_SIZE |
-| Page | 基础结构已给 | PageId、pin_count、脏页标记 |
-| Buffer Pool（单实例） | 骨架已给 | fetch/unpin/victim/update 四方法 |
-| Buffer Pool（多实例） | **需从零实现** | 哈希分区 + 16 路并发 |
-| Clock Replacer | **需从零实现** | 循环指针近似 LRU |
-| Page Guard | **需从零实现** | RAII 自动 unpin + 三级锁守卫 |
-| RWLatch | **需从零实现** | shared_mutex 封装，页级读写锁 |
-
 下一节：[10. 存储层实例串讲](./10-storage-structure-example.md)
 
-下一章：[第 2 章：记录层](../02-record-layer/README.md)（待编写）
+存储层的完整总结见：[11. 存储层总结](./11-storage-layer-summary.md)
+
+存储层的完整总结见：[11. 存储层总结](./11-storage-layer-summary.md)

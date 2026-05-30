@@ -46,11 +46,19 @@ Executor 遍历 student 表 1000 条记录
 - **Unpin（`pin_count_--`）**：我用完了，**可以淘汰了**
 - **pin_count 可以大于 1**：多个执行器可能同时在读同一页
 
-```
-进程 A: fetch_page → pin_count_ = 1
-进程 B: fetch_page（同一页）→ pin_count_ = 2  ← 两个进程共用
-进程 A: unpin_page → pin_count_ = 1
-进程 B: unpin_page → pin_count_ = 0            ← 可以淘汰了
+```mermaid
+sequenceDiagram
+    participant A as 进程 A
+    participant BP as 缓冲池
+    participant B as 进程 B
+    A->>BP: fetch_page 某页
+    Note over BP: pin_count 变为 1
+    B->>BP: fetch_page 同一页
+    Note over BP: pin_count 变为 2 两个进程共用
+    A->>BP: unpin_page
+    Note over BP: pin_count 变为 1
+    B->>BP: unpin_page
+    Note over BP: pin_count 变为 0 可以淘汰了
 ```
 
 ### 脏页（Dirty Page）
@@ -60,28 +68,31 @@ Executor 遍历 student 表 1000 条记录
 - `is_dirty_ = true`：内存中改了，磁盘上还是旧的，**淘汰前必须先写回磁盘**
 - `is_dirty_ = false`：内存和磁盘一致，直接丢弃即可
 
-```
-1. fetch_page({fd:3, page_no:1})  → 从磁盘读入，is_dirty_ = false
-2. 修改该页某条记录               → is_dirty_ = true（脏了！）
-3. unpin_page                     → 如果此时要淘汰，必须 write_page 写回磁盘
+```mermaid
+flowchart LR
+    A["fetch_page 从磁盘读入"] --> B["is_dirty 为 false"]
+    B --> C["修改页内记录"]
+    C --> D["is_dirty 变为 true 脏了"]
+    D --> E["unpin_page"]
+    E --> F["淘汰该页时 必须 write_page 写回磁盘"]
 ```
 
 ### 命中与未命中
 
-```
-fetch_page(page_id)
-  │
-  ├─ page_table_ 中有记录？ → 命中（Hit）→ 直接返回 Page*，pin_count++
-  │
-  └─ page_table_ 中无记录？ → 未命中（Miss）
-       │
-       ├─ free_list_ 中有空闲 frame？ → 拿来用
-       │
-       └─ free_list_ 空？ → 调用 Replacer 选一个受害者（Victim）
-            │
-            ├─ 受害者是脏页？ → 先 write_page 写回磁盘
-            │
-            └─ 从磁盘 read_page 读入目标页，更新 page_table_
+```mermaid
+flowchart TD
+    A["fetch_page 收到请求"] --> B{"page_table_ 有记录?"}
+    B -->|"命中 Hit"| C["直接返回 Page 指针, pin_count 加一"]
+    B -->|"未命中 Miss"| D{"free_list_ 有空闲 frame?"}
+    D -->|"是"| E["分配空闲 frame"]
+    D -->|"否"| F["调用 Replacer 选受害者 Victim"]
+    F --> G{"受害者是脏页?"}
+    G -->|"是"| H["先 write_page 写回磁盘"]
+    G -->|"否"| I["从磁盘 read_page 读入目标页"]
+    H --> I
+    E --> J["更新 page_table_"]
+    I --> J
+    J --> C
 ```
 
 ## 缓冲池的核心数据结构

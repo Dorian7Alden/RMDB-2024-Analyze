@@ -91,6 +91,45 @@ void DiskManager::read_page(int fd, page_id_t page_no,
 - `data`：从磁盘读取的数据写入此缓冲区
 - 调用场景：缓冲池未命中时（`fetch_page` 需要从磁盘加载页面）、读取文件头时（`RmFileHandle` 构造）
 
+> **Q: read_page 读完之后为什么没有返回值？**
+>
+> 调用方在调用 `read_page` 之前，就已经准备好了目标缓冲区，函数只管往里填数据。以 `fetch_page` 为例：
+>
+> ```cpp
+> // buffer_pool_instance.cpp
+> disk_manager_->read_page(page_id.fd, page_id.page_no,
+>                           page->get_data(), PAGE_SIZE);
+> //                        ^^^^^^^^^^^^^^^^
+> //                        数据直接写入 Page 对象内的 data_ 数组
+> ```
+>
+> 调用方自己提供的缓冲区（`page->get_data()` 返回 `data_` 数组地址），所以不需要返回值——数据已经在它指定的位置了。
+>
+> **Q: 读入内存缓冲区的数据怎么区分？Page 的 `data_[4096]` 只是原始字节，换入换出不会乱吗？**
+>
+> 不会乱，区分靠三层信息：
+>
+> | 层级 | 机制 | 说明 |
+> |------|------|------|
+> | **页归属** | `Page::id_` | 每个 Page 对象身上有 `PageId {fd, page_no}`，标明"这是哪个文件的第几页" |
+> | **页内结构** | 页面头 | `data_` 内部有 `RmPageHdr` 或 `IxPageHdr`，记录页内记录数、空闲位置等 |
+> | **帧定位** | `page_table_` | Buffer Pool 维护的 `unordered_map<PageId, frame_id>`，给定 PageId 能找到对应 Page 对象 |
+>
+> 流程示意：
+>
+> ```
+> fetch_page({fd:3, page_no:1}):
+>   1. 在 frames_ 中分配一个空闲 Page 对象（如 frame_id=2）
+>   2. 设置 page->id_ = {fd:3, page_no:1}          ← 标记页归属
+>   3. disk_manager_->read_page(3, 1, page->data_)  ← 填入原始字节
+>   4. page_table_[{fd:3, page_no:1}] = 2           ← 注册索引
+>
+> 之后访问:
+>   page_table_[{fd:3, page_no:1}] → frame_id=2 → frames_[2] → Page 对象
+> ```
+>
+> 原始字节不知道自己是谁——但包裹它的 Page 对象和 Buffer Pool 的索引表一起完成了定位。
+
 ### 脏页淘汰实例
 
 缓冲池满时，`fetch_page` 调用 `update_page` 淘汰旧页装入新页。这是实际源码（`buffer_pool_instance.cpp:31-58`）：
@@ -298,45 +337,6 @@ UPDATE student SET age=21 WHERE id=1;
 ```
 
 > WAL 的完整机制将在**第 7 章：故障恢复**中深入讲解。
-
-**Q6: read_page 读完之后为什么没有返回值？**
-
-调用方在调用 `read_page` 之前，就已经准备好了目标缓冲区，函数只管往里填数据。以 `fetch_page` 为例：
-
-```cpp
-// buffer_pool_instance.cpp
-disk_manager_->read_page(page_id.fd, page_id.page_no,
-                          page->get_data(), PAGE_SIZE);
-//                        ^^^^^^^^^^^^^^^^
-//                        数据直接写入 Page 对象内的 data_ 数组
-```
-
-调用方自己提供的缓冲区（`page->get_data()` 返回 `data_` 数组地址），所以不需要返回值——数据已经在它指定的位置了。
-
-**Q7: 读入内存缓冲区的数据怎么区分？Page 的 `data_[4096]` 只是原始字节，换入换出不会乱吗？**
-
-不会乱，区分靠三层信息：
-
-| 层级 | 机制 | 说明 |
-|------|------|------|
-| **页归属** | `Page::id_` | 每个 Page 对象身上有 `PageId {fd, page_no}`，标明"这是哪个文件的第几页" |
-| **页内结构** | 页面头 | `data_` 内部有 `RmPageHdr` 或 `IxPageHdr`，记录页内记录数、空闲位置等 |
-| **帧定位** | `page_table_` | Buffer Pool 维护的 `unordered_map<PageId, frame_id>`，给定 PageId 能找到对应 Page 对象 |
-
-流程示意：
-
-```
-fetch_page({fd:3, page_no:1}):
-  1. 在 frames_ 中分配一个空闲 Page 对象（如 frame_id=2）
-  2. 设置 page->id_ = {fd:3, page_no:1}          ← 标记页归属
-  3. disk_manager_->read_page(3, 1, page->data_)  ← 填入原始字节
-  4. page_table_[{fd:3, page_no:1}] = 2           ← 注册索引
-
-之后访问:
-  page_table_[{fd:3, page_no:1}] → frame_id=2 → frames_[2] → Page 对象
-```
-
-原始字节不知道自己是谁——但包裹它的 Page 对象和 Buffer Pool 的索引表一起完成了定位。
 
 ## 在整体架构中的位置
 

@@ -119,6 +119,16 @@ flowchart TD
 
 > **图例：** <span style="color:#1565c0">■</span> 起止 &nbsp; <span style="color:#f9a825">■</span> 判断分支 &nbsp; <span style="color:#2e7d32">■</span> 命中直接返回 &nbsp; <span style="color:#1565c0">■</span> 内存操作 &nbsp; <span style="color:#c62828">■</span> 磁盘 I/O
 
+> **问：极端情况下，一条 SQL 会不会用完缓冲池所有页？所需页数超过缓冲池容量怎么办？**
+>
+> **答：会，这正是 Replacer 存在的意义。** 一条全表扫描 SQL 可能涉及成百上千页，超过缓冲池容量是完全可能的。处理方式就是流程图右边的分支——`free_list_` 空了之后，Replacer 按 LRU 策略选一个**最久未使用且 pin_count 为 0** 的 frame 作为受害者，踢掉它，腾出位置装新页。
+>
+> 关键约束在于 **pin_count**：
+> - 执行器每读完一页应立即 `unpin_page`，让 pin_count 归零。只要 pin_count 为 0，这页就成为"可淘汰"候选
+> - 如果执行器 bug 导致 pin 了不 unpin，这些页永远不会被淘汰。极端情况下所有页都被 pin 住，系统就会无页可用——但这是实现错误，不是正常情况
+>
+> 所以缓冲池的容量不需要覆盖整条 SQL 涉及的全部页面，只需要覆盖**同一时刻被 pin 住的页面**——这个数量通常很小（一次只 pin 正在操作的那几页）。Replacer 负责把"曾经用过但现在已经 unpin"的旧页换出去，保证新页能进来。
+
 ## 缓冲池的核心数据结构
 
 不管单实例还是多实例版本，缓冲池都围绕以下结构：

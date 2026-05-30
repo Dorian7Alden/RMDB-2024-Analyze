@@ -83,7 +83,7 @@ class BufferPoolInstance {
 >
 > 核心思路：LRU 用精确排序（链表头部=最近用过，尾部=最久未用），但需要动态分配链表节点；Clock 用近似策略——一个游标循环扫描所有 frame，遇到 `pin_ == true` 的给它"第二次机会"（清零后跳过），遇到 `pin_ == false` 的就淘汰。Clock 虽然不那么精确，但**零动态分配、零内部锁开销**，更契合多实例版本"每个小池子独立加锁、分区固定"的架构。
 >
-> 详细实现留到 [07. LRU 页面替换](./07-buffer-pool-lru.md) 展开。
+> 详细实现留到 [07. LRU 页面替换](./07-page-replacer.md) 展开。
 >
 > 每个 Instance 内部的 `fetch_page`、`unpin_page`、`find_victim_page`、`update_page` 逻辑与单实例版本几乎一致——只是 scope 从"全局"变成了"本分区"。
 
@@ -128,4 +128,4 @@ BufferPoolManager                       │
 - `BufferPoolManager` 退化为一个"路由器"，只负责 `hash(page_id) % 16`
 - 不同 Instance 之间无竞争，并发能力提升 16 倍（理想情况）
 
-下一节：[07. LRU 页面替换](./07-buffer-pool-lru.md)
+下一节：[07. LRU 页面替换](./07-page-replacer.md)

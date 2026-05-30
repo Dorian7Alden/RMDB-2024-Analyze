@@ -1,4 +1,4 @@
-# 06. 页面替换算法
+# 07. 页面替换算法
 
 ## 问题
 
@@ -174,4 +174,4 @@ BufferPoolInstance::unpin_page(page_id)
 - Clock 用数组 + 循环指针近似 LRU，简单高效
 - 参考实现选择 Clock，因为每个 Instance 规模小（4096 frame），近似 LRU 足够好
 
-下一节：[07. Page Guard RAII 机制](./07-page-guard.md)
+下一节：[08. Page Guard RAII 机制](./08-page-guard.md)

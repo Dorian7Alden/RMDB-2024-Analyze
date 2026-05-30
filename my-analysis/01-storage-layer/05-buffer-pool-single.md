@@ -1,4 +1,4 @@
-# 04. 单实例缓冲池（框架版本）
+# 05. 单实例缓冲池（框架版本）
 
 ## 概述
 
@@ -209,4 +209,4 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
 - `fetch_page` 的流程：查 page_table_ → 命中返回 / 未命中 → 找 victim → update_page → 读磁盘
 - 全局 `std::mutex` 导致所有操作串行化，性能差
 
-下一节：[05. 多实例缓冲池](./05-buffer-pool-multi.md)
+下一节：[06. 多实例缓冲池](./06-buffer-pool-multi.md)

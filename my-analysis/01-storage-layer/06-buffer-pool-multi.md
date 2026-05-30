@@ -1,4 +1,4 @@
-# 05. 多实例缓冲池（参考实现）
+# 06. 多实例缓冲池（参考实现）
 
 ## 问题回顾
 
@@ -113,4 +113,4 @@ BufferPoolManager                       │
 - `BufferPoolManager` 退化为一个"路由器"，只负责 `hash(page_id) % 16`
 - 不同 Instance 之间无竞争，并发能力提升 16 倍（理想情况）
 
-下一节：[06. LRU 页面替换](./06-buffer-pool-lru.md)
+下一节：[07. LRU 页面替换](./07-buffer-pool-lru.md)

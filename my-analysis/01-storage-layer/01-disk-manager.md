@@ -155,11 +155,9 @@ page_id_t DiskManager::allocate_page(int fd) {
 
 | 缩写 | 全称 | 中文含义 |
 |------|------|----------|
-| `hdr` | Header | 头（文件头 / 页头） |
+| `hdr` | Header | 头（文件头） |
 | `RmFileHdr` | Record Manager File Header | 记录文件的文件头 |
 | `IxFileHdr` | IndeX File Header | 索引文件的文件头 |
-| `RmPageHdr` | Record Manager Page Header | 记录页面的页头 |
-| `IxPageHdr` | IndeX Page Header | 索引页面的页头 |
 
 ### RmFileHdr
 
@@ -303,7 +301,7 @@ UPDATE student SET age=21 WHERE id=1;
 
 ## 在整体架构中的位置
 
-Disk Manager 被 BufferPoolManager 持有（`DiskManager*` 指针），只在缓冲池未命中时才被调用：
+Disk Manager 被 BufferPoolInstance 持有（`DiskManager*` 指针，`buffer_pool_instance.h:25`），只在缓冲池未命中时才被调用：
 
 ```
 上层 (RM/IX) → Buffer Pool → [未命中] → Disk Manager → 磁盘文件

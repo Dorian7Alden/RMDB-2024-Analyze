@@ -142,22 +142,41 @@ flowchart TD
 
 ## 实例
 
-以 student 表为例，页面大小为 4KB，每条记录约 100 字节，一页大约放 40 条记录。
+以 student 表为例：页面大小 4KB，每条记录约 100 字节，一页大约放 40 条记录。1000 条记录共 25 页（page_no 0 到 24）。
 
+```mermaid
+flowchart TD
+    A["初始: free_list 全空 65536 个 frame"] --> B["逐页 fetch_page 消耗空闲 frame"]
+    B --> C{"free_list 耗尽?"}
+    C -->|"未耗尽"| B
+    C -->|"耗尽"| D["Replacer 选最久未使用 frame"]
+    D --> E{"受害者是脏页?"}
+    E -->|"是"| F["write_page 写回磁盘"]
+    E -->|"否"| G["淘汰旧页 装入新页"]
+    F --> G
+    G --> H["读完该页 unpin pin_count 归零"]
+    H --> D
+
+    classDef idle fill:#c8e6c9,stroke:#2e7d32
+    classDef consume fill:#bbdefb,stroke:#1565c0
+    classDef decide fill:#fff9c4,stroke:#f9a825
+    classDef replacer fill:#e1bee7,stroke:#7b1fa2
+    classDef disk fill:#ffcdd2,stroke:#c62828
+    classDef unpin fill:#b2dfdb,stroke:#00695c
+    class A idle
+    class B,G consume
+    class C,E decide
+    class D replacer
+    class F disk
+    class H unpin
 ```
-student 表有 1000 条记录，共 1000/40 = 25 页（page_no 0~24）
 
-缓冲池初始状态: free_list_ = [0, 1, 2, ..., 65535]
+> **图例：** <span style="color:#2e7d32">■</span> 初始空闲 &nbsp; <span style="color:#1565c0">■</span> 消耗/装入 &nbsp; <span style="color:#f9a825">■</span> 判断分支 &nbsp; <span style="color:#7b1fa2">■</span> Replacer 决策 &nbsp; <span style="color:#c62828">■</span> 磁盘 I/O &nbsp; <span style="color:#00695c">■</span> unpin 释放
 
-全表扫描开始:
-  fetch_page({fd:3, page_no:0}) → 命中 free_list_[0] → frame 0 装入第 0 页
-  fetch_page({fd:3, page_no:1}) → 命中 free_list_[1] → frame 1 装入第 1 页
-  ...
-  每读完一页: unpin_page → pin_count 归零 → Replacer 可以回收
+整个过程分两个阶段：
 
-当缓冲池满了（free_list_ 为空），再 fetch_page 时:
-  Replacer 选出最久未使用的 frame → 如果是脏页先写回 → 装入新页
-```
+1. **消耗阶段**（左侧循环）：持续从 `free_list_` 取空闲 frame，缓冲池有大量空位，来一页装一页
+2. **置换阶段**（右侧循环）：`free_list_` 耗尽后进入稳态，Replacer 不断踢旧页、换新页，有限 65536 个 frame 可以处理任意多的页面访问
 
 ## 小结
 

@@ -131,6 +131,22 @@ update_page(&pages_[7], {fd:3, page_no:5}, 7)
 >
 > 本节只需知道：每个方法开头那行 `scoped_lock` 就是拿锁，方法结束时自动放锁。多线程问题留到多实例版本再深入。
 
+> **问：`fetch_page` 已经加了锁，它内部调用的 `find_victim_page` 和 `update_page` 还需要再加锁吗？**
+>
+> 不需要，而且绝对不能加。同一个线程里对 `std::mutex` 重复加锁会**死锁**（自己等自己释放）。这些子函数只在 `fetch_page`、`new_page` 等主方法内部调用，调用时锁已经持有了，子函数直接操作共享数据即可。看一眼源码就能验证——`find_victim_page` 和 `update_page` 的函数体里确实没有 `scoped_lock`。
+>
+> **问：`std::scoped_lock lock{latch_};` 这个语法怎么理解？为什么用花括号？**
+>
+> ```cpp
+> std::scoped_lock lock{latch_};  // ← 这是什么？
+> ```
+>
+> - `std::scoped_lock` 是 C++17 标准库里的一个**类模板**，专门用来包装互斥锁
+> - `lock` 是这个类的一个**对象**（变量），名字可以随便取，叫 `guard` 也行
+> - `{latch_}` 是花括号初始化（列表初始化），等价于 `std::scoped_lock lock(latch_);`，两种写法完全一样，只是代码风格偏好
+>
+> 完整的"翻译"：**创建一个 `scoped_lock` 类型的对象 `lock`，把 `latch_` 传进去让它管着。** 这个对象活着的时候锁就持有着，对象销毁时（出了作用域）自动释放锁。
+
 ```cpp
 // buffer_pool_manager.cpp:72-104（框架版本）
 Page* BufferPoolManager::fetch_page(PageId page_id) {

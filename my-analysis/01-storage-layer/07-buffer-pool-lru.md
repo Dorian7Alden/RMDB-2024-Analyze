@@ -60,41 +60,96 @@ flowchart LR
 
 #### 分步演示
 
-以三个 frame 为例，跟踪每一步操作后链表和哈希表的变化。记住两个口诀：
+以三个 frame 为例，跟踪每一步操作后链表的变化。记住两个口诀：
 
 - **pin = "推到最前面"**（要么插入首部，要么从原位置移到首部）
 - **unpin ≠ "删掉"**，unpin 不改变链表位置！顺序只由 pin（访问时间）决定，unpin 只是"放行"——表示这个 frame 现在可以被 victim 淘汰了
 
-| 步骤 | 操作 | LRUlist_（head → tail） | LRUhash_ | 说明 |
-|------|------|------------------------|----------|------|
-| 0 | 初始 | (空) | (空) | 还没有任何 frame 被 pin 过 |
-| 1 | `pin(3)` | `[3]` | `{3→N3}` | 链表空，直接 push_front。3 既是首也是尾 |
-| 2 | `pin(7)` | `[7] → [3]` | `{3→N3, 7→N7}` | 7 插入首部，3 被推到第二位 |
-| 3 | `pin(3)` 再次 | `[3] → [7]` | `{3→N3, 7→N7}` | 3 已存在！从原位置删除，重新 push_front，顺序变了 |
-| 4 | `pin(5)` | `[5] → [3] → [7]` | `{3→N3, 5→N5, 7→N7}` | 5 插入首部 |
-| 5 | `unpin(3)` | `[5] → [3] → [7]` | 不变 | **pin 放开，但 3 的位置不动！** 它仍然在 5 后面 |
-| 6 | `unpin(5)` | `[5] → [3] → [7]` | 不变 | 同上，5 的位置也不动 |
-| 7 | `victim()` | `[5] → [3]` | `{3→N3, 5→N5}` | 取尾部 7（最久未用），pop_back 删除，哈希同步删除 |
+```mermaid
+flowchart LR
+    subgraph S0["步骤 0: 初始状态"]
+        direction LR
+        H0["head"] --> E0["(空)"]
+    end
+```
+
+```mermaid
+flowchart LR
+    subgraph S1["步骤 1: pin frame 3 首次访问"]
+        direction LR
+        H1["head"] --> N3["3"] --> T1["tail"]
+    end
+    NB1["链表为空 直接 push_front\n3 既是首也是尾"]:::sticky -.-> N3
+    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
+```
+
+```mermaid
+flowchart LR
+    subgraph S2["步骤 2: pin frame 7 首次访问"]
+        direction LR
+        H2["head"] --> N7["7"] --> N3["3"] --> T2["tail"]
+    end
+    NB2["7 入首部 3 被推到第二位"]:::sticky -.-> N7
+    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
+```
+
+```mermaid
+flowchart LR
+    subgraph S3["步骤 3: 再次 pin frame 3"]
+        direction LR
+        H3["head"] --> N3b["3"] --> N7b["7"] --> T3["tail"]
+    end
+    NB3["3 已在链表中\n先 erase 从尾部位置摘下来\n再 push_front 推到首部"]:::sticky -.-> N3b
+    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
+```
+
+```mermaid
+flowchart LR
+    subgraph S4["步骤 4: pin frame 5"]
+        direction LR
+        H4["head"] --> N5["5"] --> N3c["3"] --> N7c["7"] --> T4["tail"]
+    end
+```
+
+```mermaid
+flowchart LR
+    subgraph S5["步骤 5: unpin frame 3"]
+        direction LR
+        H5["head"] --> N5b["5"] --> N3d["3 已 unpin"] --> N7d["7"] --> T5["tail"]
+    end
+    NB5["unpin 不改变链表位置\n3 仍然在 5 后面"]:::sticky -.-> N3d
+    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
+```
+
+```mermaid
+flowchart LR
+    subgraph S6["步骤 6: unpin frame 5"]
+        direction LR
+        H6["head"] --> N5c["5 已 unpin"] --> N3e["3 已 unpin"] --> N7e["7"] --> T6["tail"]
+    end
+    NB6["5 也 unpin 了 顺序依旧不变"]:::sticky -.-> N5c
+    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
+```
+
+```mermaid
+flowchart LR
+    subgraph S7["步骤 7: victim 选受害者"]
+        direction LR
+        H7["head"] --> N5d["5 已 unpin"] --> N3f["3 已 unpin"] --> T7["tail"]
+    end
+    NB7["取尾部 7 淘汰\n7 从步骤 2 起就没再被 pin 过\n一直待在尾部"]:::victim -.-> T7
+    classDef victim fill:#ffcdd2,stroke:#c62828,stroke-dasharray: 4
+```
 
 步骤 7 中 victim 选了 frame 7 而不是 3，为什么？因为 5 和 3 虽然都 unpin 了，但**3 在步骤 3 被重新 pin 过**，被推到了前面，而 7 从步骤 2 之后就没再被 pin 过，一直待在链表尾部——**谁最久没被访问，谁在尾部**。
 
 #### pin、unpin、victim 三者的分工
 
-```mermaid
-flowchart LR
-    subgraph pin["pin 的作用"]
-        P1["每次访问都推到链表首部"]
-        P2["维持 head=最近 tail=最久的顺序"]
-    end
-    subgraph unpin["unpin 的作用"]
-        U1["不改变链表位置"]
-        U2["相当于贴标签: 这个 frame 允许被淘汰了"]
-    end
-    subgraph vic["victim 的作用"]
-        V1["从尾部取"]
-        V2["因为尾部=最久未访问"]
-    end
-```
+| 方法 | 改链表位置？ | 做什么 | 口诀 |
+|------|:--------:|------|------|
+| `pin` | 是 | 把 frame 推到链表首部 | "刚用过，排最前" |
+| `unpin` | 否 | 不改变位置，只标记"可淘汰" | "用完了，可以踢" |
+| `victim` | 是 | 取链表尾部，删除它 | "最久没用的，淘汰" |
 
 - **pin 负责排序**：每次 pin 都把 frame 推到头部，时间越近越靠前
 - **unpin 负责放行**：不改变顺序，只标记"可淘汰"。不用链表位置来区分"是否可淘汰"，因为顺序另有他用

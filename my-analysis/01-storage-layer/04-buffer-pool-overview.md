@@ -24,7 +24,7 @@ Executor 遍历 student 表 1000 条记录
 ### 帧（Frame）与页（Page）的关系
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph BP["BufferPoolInstance 缓冲池"]
         subgraph pages["pages_ 数组 共 65536 个 frame"]
             direction LR
@@ -35,8 +35,8 @@ flowchart LR
             FN["..."]
         end
     end
-    F0 -.->|"存了"| STU["student 表第 0 页"]
-    F3 -.->|"存了"| COU["course 表第 3 页"]
+    F0 -.-> STU["存了 student 表第 0 页"]
+    F3 -.-> COU["存了 course 表第 3 页"]
 ```
 
 - **帧（Frame）**：缓冲池数组的一个槽位，对应内存中一个 Page 对象

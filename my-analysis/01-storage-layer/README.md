@@ -26,6 +26,7 @@
 | 07 | [LRU 页面替换](./07-buffer-pool-lru.md) | LRU Replacer 算法实现 | **核心** |
 | 08 | [Page Guard](./08-page-guard.md) | RAII 页面守卫：自动 unpin | **核心** |
 | 09 | [RWLatch 读写锁](./09-rwlatch.md) | 页面级读写锁 | **核心** |
+| 10 | [存储层实例串讲](./10-storage-structure-example.md) | 用具体实例串联所有组件，建立整体认知 | 综合 |
 
 ## 存储层在整体架构中的位置
 

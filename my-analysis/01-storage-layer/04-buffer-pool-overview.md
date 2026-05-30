@@ -70,23 +70,19 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A["fetch_page 从磁盘读入"] --> B["is_dirty 为 false"]
-    B --> C["修改页内记录"]
-    C --> D["is_dirty 变为 true 脏了"]
-    D --> E["unpin_page"]
-    E --> F["淘汰该页时 必须 write_page 写回磁盘"]
+    A["fetch_page 从磁盘读入"] -->|"is_dirty = false 干净"| B["修改页内记录"]
+    B -->|"is_dirty = true 脏了"| C["unpin_page"]
+    C --> D["淘汰时必须 write_page 写回磁盘"]
 
-    classDef clean fill:#c8e6c9,stroke:#2e7d32
-    classDef dirty fill:#ffcdd2,stroke:#c62828
-    classDef action fill:#bbdefb,stroke:#1565c0
-    classDef danger fill:#ffab91,stroke:#d84315
-    class A,B clean
-    class C,E action
-    class D dirty
-    class F danger
+    classDef op fill:#bbdefb,stroke:#1565c0
+    classDef disk fill:#ffcdd2,stroke:#c62828
+    class A,B,C op
+    class D disk
 ```
 
-> **图例：** <span style="color:#2e7d32">■</span> 干净状态 &nbsp; <span style="color:#1565c0">■</span> 操作动作 &nbsp; <span style="color:#c62828">■</span> 脏状态 &nbsp; <span style="color:#d84315">■</span> 危险操作
+> **图例：** <span style="color:#1565c0">■</span> 内存操作 &nbsp; <span style="color:#c62828">■</span> 磁盘写入
+
+> 边上标注的是页面在此刻的脏/净状态，属于补充说明而非独立步骤。
 
 ### 命中与未命中
 

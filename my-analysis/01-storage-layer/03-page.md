@@ -69,7 +69,18 @@ data_[0]   data_[1]   data_[2]   data_[3]   data_[4]  ...  data_[4095]
 | `friend class` | `BufferPoolManager` | `BufferPoolInstance` |
 | `get_pin_count()` | 无 | 有，返回 `pin_count_` |
 
-**最关键的变化**：框架中 Page 的 `friend class` 是 `BufferPoolManager`，参考实现中改为了 `BufferPoolInstance`。这暗示了核心架构变化——从一个大 BufferPool 管理所有 Page，变为多个 Instance 各管一部分。
+这些差异各自的考量：
+
+| 差异 | 为什么这么改 |
+|------|-------------|
+| `operator!=` | 缓冲池的 `page_table_` 查找和替换逻辑需要比较 PageId 是否不同，没有 `!=` 就要写 `!(a == b)`，降低可读性 |
+| `PageId::Get()` 被注释 | `(fd << 16) \| page_no` 将 fd 和 page_no 编码为一个 int64，但 fd 只取了低 16 位，限制了最大文件数。直接用 `std::hash` 更通用、更安全 |
+| `PageIdHash` → `std::hash` | C++ 标准库容器（如 `unordered_map`）默认使用 `std::hash` 模板特化，直接特化它比自定义结构体更符合 C++ 惯例，使用时也无需显式指定第三个模板参数 |
+| 新增 `RWLatch` | 单实例版用一把大锁串行化了所有访问。多实例版需要页面级别的并发控制，RWLatch 允许多个读者同时读、写者独占，是并发性能的基础 |
+| `friend class` 变更 | BufferPoolManager → BufferPoolInstance，对应了从"一个大池子"到"多个分区分池"的架构演变，每个 Instance 独立管理自己那部分 Page |
+| 新增 `get_pin_count()` | 多实例环境下，Page Guard（RAII 守卫）和调试诊断需要查看 pin 计数，框架版缺少这个只读访问器 |
+
+**最关键的变化**是 `friend class` 和 `RWLatch` 的新增——前者决定了"谁来管理 Page"，后者决定了"并发访问 Page 的能力"。
 
 ## Page 的生命周期
 

@@ -38,6 +38,25 @@ Executor 遍历 student 表 1000 条记录
 - **页（Page）**：逻辑概念，可能当前在某个 Frame 中，也可能只在磁盘上
 - `BUFFER_POOL_SIZE = 65536`（`common/config.h:39`），即最多缓存 65536 个页面（约 256MB）
 
+**源码对应：**
+
+```cpp
+// src/storage/buffer_pool_instance.h:20-24
+Page* pages_;                                      // Frame 数组，每个元素是一个 Page 对象
+std::unordered_map<PageId, frame_id_t> page_table_; // 页号 → frame 编号的映射
+std::list<frame_id_t> free_list_;                  // 空闲 frame 编号链表
+
+// src/storage/page.h:116-127
+class Page {
+    PageId id_;            // 该页对应的磁盘页标识
+    char data_[PAGE_SIZE]; // 页内实际数据（4KB）
+    bool is_dirty_ = false; // 脏页标记
+    int pin_count_ = 0;    // 引用计数
+};
+```
+
+`pages_` 数组就是上图中那行 Frame 的真实实现，每个 `Page` 对象知道自己存的是哪个磁盘页（`id_`）、数据本体在哪（`data_`）、当前是否被 pin（`pin_count_`）、是否脏了（`is_dirty_`）。
+
 ### Pin 与 Unpin
 
 "Pin"（钉住）是缓冲池最核心的机制：
@@ -61,6 +80,29 @@ sequenceDiagram
     Note over BP: pin_count 变为 0 可以淘汰了
 ```
 
+**源码对应：**
+
+```cpp
+// src/storage/page.h:127
+int pin_count_ = 0;  // 引用计数，初值为 0
+
+// fetch_page 中 pin_count++（src/storage/buffer_pool_instance.cpp:112-116）
+if (page_table_.find(page_id) != page_table_.end()) {
+    // 命中：引用计数 +1
+    pages_[frame_id].pin_count_++;
+    return &pages_[frame_id];
+}
+// 未命中：分配 frame 后 pin_count_ = 1
+
+// unpin_page 中 pin_count--（src/storage/buffer_pool_instance.cpp:139-146）
+page->pin_count_--;
+if (page->pin_count_ == 0) {
+    replacer_->unpin(frame_id);  // 计数归零，通知 Replacer 可以淘汰
+}
+```
+
+`pin_count_` 存储在 `Page` 对象内部，`fetch_page` 负责加一，`unpin_page` 负责减一。减到零时通知 Replacer"这页现在可淘汰了"。
+
 ### 脏页（Dirty Page）
 
 如果页面的数据在内存中被修改了，它就和磁盘上的版本不一致了。这种页面叫**脏页**。
@@ -70,8 +112,8 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    A["fetch_page 从磁盘读入"] -->|"is_dirty = false 干净"| B["修改页内记录"]
-    B -->|"is_dirty = true 脏了"| C["unpin_page"]
+    A["fetch_page 从磁盘读入"] -->|"is_dirty = false"| B["修改页内记录"]
+    B -->|"is_dirty = true"| C["unpin_page"]
     C --> D["淘汰时必须 write_page 写回磁盘"]
 
     classDef op fill:#bbdefb,stroke:#1565c0
@@ -83,6 +125,24 @@ flowchart LR
 > **图例：** <span style="color:#1565c0">■</span> 内存操作 &nbsp; <span style="color:#c62828">■</span> 磁盘写入
 
 > 边上标注的是页面在此刻的脏/净状态，属于补充说明而非独立步骤。
+
+**源码对应：**
+
+```cpp
+// src/storage/page.h:124
+bool is_dirty_ = false;  // 脏页标记，初值为 false
+
+// unpin_page 中设置脏标记（src/storage/buffer_pool_instance.cpp:146）
+page->is_dirty_ |= is_dirty;  // 调用方传入 true 时置位，传入 false 保持原值
+
+// update_page 中淘汰脏页时写回（src/storage/buffer_pool_instance.cpp:39-43）
+if (page->is_dirty_) {
+    disk_manager_->write_page(page->id_, page->data_);  // 脏页先写回磁盘
+    page->is_dirty_ = false;                             // 写回后恢复干净
+}
+```
+
+`is_dirty_` 位用 `|=` 置位而不是直接赋值，这样多次修改只要有一次变脏就记为脏，不会因为某次 unpin 传了 `false` 而错误清零。
 
 ### 命中与未命中
 
@@ -114,6 +174,34 @@ flowchart TD
 ```
 
 > **图例：** <span style="color:#1565c0">■</span> 起止 &nbsp; <span style="color:#f9a825">■</span> 判断分支 &nbsp; <span style="color:#2e7d32">■</span> 命中直接返回 &nbsp; <span style="color:#1565c0">■</span> 内存操作 &nbsp; <span style="color:#c62828">■</span> 磁盘 I/O
+
+**源码对应：** 上图直接映射到 `BufferPoolInstance::fetch_page` 的完整实现（`src/storage/buffer_pool_instance.cpp:68-123`），核心骨架如下：
+
+```cpp
+Page* BufferPoolInstance::fetch_page(PageId page_id) {
+    std::scoped_lock lock{latch_};
+    // 1. 查 page_table_ 判断是否命中
+    auto it = page_table_.find(page_id);
+    if (it != page_table_.end()) {
+        frame_id_t frame_id = it->second;
+        pages_[frame_id].pin_count_++;    // 命中：pin_count++
+        replacer_->pin(frame_id);         // 通知 Replacer 此页被访问
+        return &pages_[frame_id];
+    }
+    // 2. 未命中：找 victim frame
+    frame_id_t frame_id;
+    find_victim_page(&frame_id);          // 先查 free_list_，空了查 Replacer
+    // 3. 淘汰旧页（脏页先写回）
+    update_page(&pages_[frame_id], page_id, frame_id);
+    // 4. 从磁盘读入目标页
+    disk_manager_->read_page(page_id, pages_[frame_id].data_);
+    pages_[frame_id].pin_count_ = 1;
+    replacer_->pin(frame_id);
+    return &pages_[frame_id];
+}
+```
+
+流程图中每个菱形判断和矩形操作都能在源码中找到一一对应的位置。其中 `find_victim_page` 内部封装了"先查 `free_list_`，空了再查 Replacer"的逻辑（`buffer_pool_instance.cpp:10-21`）。
 
 > **问：极端情况下，一条 SQL 会不会用完缓冲池所有页？所需页数超过缓冲池容量怎么办？**
 >

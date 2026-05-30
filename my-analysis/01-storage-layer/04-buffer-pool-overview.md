@@ -75,7 +75,18 @@ flowchart LR
     C --> D["is_dirty 变为 true 脏了"]
     D --> E["unpin_page"]
     E --> F["淘汰该页时 必须 write_page 写回磁盘"]
+
+    classDef clean fill:#c8e6c9,stroke:#2e7d32
+    classDef dirty fill:#ffcdd2,stroke:#c62828
+    classDef action fill:#bbdefb,stroke:#1565c0
+    classDef danger fill:#ffab91,stroke:#d84315
+    class A,B clean
+    class C,E action
+    class D dirty
+    class F danger
 ```
+
+> **图例：** <span style="color:#2e7d32">■</span> 干净状态 &nbsp; <span style="color:#1565c0">■</span> 操作动作 &nbsp; <span style="color:#c62828">■</span> 脏状态 &nbsp; <span style="color:#d84315">■</span> 危险操作
 
 ### 命中与未命中
 
@@ -93,7 +104,20 @@ flowchart TD
     E --> J["更新 page_table_"]
     I --> J
     J --> C
+
+    classDef start fill:#e3f2fd,stroke:#1565c0
+    classDef decide fill:#fff9c4,stroke:#f9a825
+    classDef hit fill:#c8e6c9,stroke:#2e7d32
+    classDef mem fill:#bbdefb,stroke:#1565c0
+    classDef disk fill:#ffcdd2,stroke:#c62828
+    class A start
+    class B,D,G decide
+    class C hit
+    class E,J mem
+    class H,I disk
 ```
+
+> **图例：** <span style="color:#1565c0">■</span> 起止 &nbsp; <span style="color:#f9a825">■</span> 判断分支 &nbsp; <span style="color:#2e7d32">■</span> 命中直接返回 &nbsp; <span style="color:#1565c0">■</span> 内存操作 &nbsp; <span style="color:#c62828">■</span> 磁盘 I/O
 
 ## 缓冲池的核心数据结构
 

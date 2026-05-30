@@ -258,6 +258,27 @@ flowchart TD
   → 数据不丢失
 ```
 
+写操作的 Mermaid 流程：
+
+```mermaid
+flowchart TD
+    A["UPDATE student SET age=21 WHERE id=5"] --> B["定位第 1 页 fetch_page fd 3 page 1"]
+    B --> C["page_table_ 命中 pin_count 变为 1"]
+    C --> D["找到 offset 142 修改 age: 22 变 21"]
+    D --> E["is_dirty = true 标记脏页"]
+    E --> F["unpin_page pin_count 归零"]
+    F --> G["未来某时刻 缓冲池满"]
+    G --> H["Replacer 选中 frame 0 淘汰"]
+    H --> I{"is_dirty 为 true?"}
+    I -->|"是"| J["write_page 写回 student.db 偏移 4096"]
+    I -->|"否"| K["直接淘汰"]
+    J --> L["is_dirty 恢复 false 淘汰完成"]
+    K --> L
+    N["崩溃恢复保障\n若步骤 D 后 J 前崩溃\nWAL 日志重放恢复数据"]:::sticky -.-> G
+
+    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
+```
+
 **脏页延迟写回的权衡**：
 
 ```
@@ -282,7 +303,7 @@ flowchart TD
         BPI0[BufferPoolInstance 0]
         BPI1[BufferPoolInstance 1]
         BPI2[BufferPoolInstance 2]
-        LRU[LRU Replacer]
+        RP[Replacer 页面替换]
         PG[Page Guard RAII]
     end
     
@@ -304,7 +325,7 @@ flowchart TD
     BPM --> BPI0
     BPM --> BPI1
     BPM --> BPI2
-    BPI0 --> LRU
+    BPI0 --> RP
     BPI0 --> PG
     PG --> PAGE
     PAGE --> RWL
@@ -322,7 +343,7 @@ flowchart TD
 | Page | 4KB 数据块，`pin_count_` 控制生命周期，`is_dirty_` 标记是否需写回 |
 | Buffer Pool | 65536 个 frame 的 Page 缓存池，`page_table_` 维护 PageId → frame 映射 |
 | Buffer Pool Instance | 多实例分区，每个分区有独立的锁，消除全局锁瓶颈 |
-| LRU Replacer | 淘汰最久未使用的页面，为新的磁盘读取腾空间 |
+| Replacer | 淘汰最久未使用的页面，为新的磁盘读取腾空间 |
 | Page Guard | RAII 自动 unpin，防止忘记释放页面导致内存泄漏 |
 | RWLatch | 页面级读写锁，允许多读者并发、写者独占 |
 
@@ -335,5 +356,7 @@ flowchart TD
 - **缓冲池侧**：frames 数组存 Page 对象，page_table_ 做 PageId → frame 索引，free_list_ 管空闲帧
 - **读写分离**：读命中直接返回，写标记脏页延迟写回，崩溃靠 WAL 恢复
 - **并发控制**：多实例分区消除全局锁，RWLatch 实现页面级读写锁，Page Guard 自动管理 pin 计数
+
+下一节：[11. 存储层总结](./11-storage-layer-summary.md) — 各模块框架状态与核心学习点汇总
 
 下一章：[第 2 章：记录层](../02-record-layer/README.md)（待编写）

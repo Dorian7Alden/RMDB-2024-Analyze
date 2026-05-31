@@ -62,6 +62,10 @@ void unpin(frame_id_t frame_id) override {
 
 简单到只有一行——减到 0 就表示 frame 不再被使用。注意 `pin_` 引用位**不会在 unpin 时清零**，它保留着"曾经被访问过"的记录，供 victim 使用。
 
+> **问：`pin_counter_` 会减成负数吗？**
+>
+> 正常不会。ClockReplacer 自己没有防负数检查（就一行 `--`），安全网在缓冲池的 `unpin_page` 方法里：它先检查 `pin_count_ == 0` 就直接 return false，只有 `pin_count_` 从 1 减到 0 时才调 `replacer_->unpin()`。所以 pin 和 unpin 的调用次数是严格配对的——每次 unpin 一定对应之前的一次 pin。但如果缓冲池有 bug（比如对同一页重复 unpin），`pin_counter_` 确实可能被减成负数，ClockReplacer 自身不做防御。
+
 ### victim：选受害者
 
 ```cpp

@@ -49,7 +49,7 @@ void pin(frame_id_t frame_id) override {
 
 - `pin_counter_` 和缓冲池的 `pin_count_` 不是同一个东西——后者在 Page 对象里，前者在 ClockReplacer 数组里。两者数值应该一致，但各管各的。
 
-- `pin_[i] = true` 的含义是：frame i **曾经被访问过**，victim 扫描到它时会宽容一次。
+- `pin_[i] = true` 的含义是：frame i **曾经被访问过**，victim 扫描到它时会宽容一次。**但宽容的前提是 `pin_counter_ == 0`（frame 没有被 pin 着）**——如果 frame 正在使用中（`pin_counter_ > 0`），victim 直接跳过，根本不会去看 `pin_` 的值。
 
 ### unpin：标记可淘汰
 

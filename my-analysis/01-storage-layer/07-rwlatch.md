@@ -81,6 +81,8 @@ DBMS 中的锁按**保护对象**和**持有时间**分不同级别：
 
 `RWLatch` 的命名刻意用了 **Latch** 而不是 Lock，因为它处于最底层——只保护一个 Page 对象在内存中的并发访问，不管这个 Page 上的数据在逻辑上属于哪个表、哪些行。逻辑层面的锁（行锁、表锁）由事务层负责，后续讲到事务时再展开。
 
+> **补充**：类名叫 `RWLatch`，但内部方法叫 `WLock`/`WUnlock`/`RLock`/`RUnlock`——这是因为底层调用的是 `std::shared_mutex` 的 `lock()`/`unlock()`/`lock_shared()`/`unlock_shared()`，方法名沿用了标准库的命名习惯。到了 Page 类的封装层（`WLatch()`/`WUnlatch()` 等），又统一回了 Latch 命名。
+
 ## RWLatch 在 Page 中的集成
 
 每个 Page 对象都有一个 RWLatch 成员（`page.h:96`）：

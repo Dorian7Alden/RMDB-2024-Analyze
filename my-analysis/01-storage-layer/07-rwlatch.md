@@ -21,25 +21,14 @@ RWLatch 是存储层最底层的并发控制原语。它是对 C++ 标准库 `st
 | 读 | 共享锁（Shared Lock） | 与其他读操作兼容（多人同时读） |
 | 写 | 排他锁（Exclusive Lock） | 不与任何人兼容（独占） |
 
-```mermaid
-flowchart LR
-    subgraph ok["兼容"]
-        style ok fill:#d4edda,stroke:#28a745,color:#155724
-        r_r["读锁 + 读锁<br/>同时进行"]
-    end
-    subgraph no["冲突 必须等待"]
-        style no fill:#f8d7da,stroke:#dc3545,color:#721c24
-        r_w["读锁 + 写锁<br/>写者等待"]
-        w_r["写锁 + 读锁<br/>读者等待"]
-        w_w["写锁 + 写锁<br/>后者等待"]
-    end
-```
+四种组合的兼容性：
 
-```mermaid
-flowchart LR
-    g["绿色块"] --- t1["兼容"]
-    r["红色块"] --- t2["冲突"]
-```
+| 已持有 | 新请求 | 结果 |
+|--------|--------|------|
+| 读锁 | 读锁 | 兼容，同时进行 |
+| 读锁 | 写锁 | 冲突，写者等待 |
+| 写锁 | 读锁 | 冲突，读者等待 |
+| 写锁 | 写锁 | 冲突，后者等待 |
 
 ## 数据结构与实现
 
@@ -97,11 +86,15 @@ DBMS 中的锁按**保护对象**和**持有时间**分不同级别：
 ```mermaid
 flowchart TB
     subgraph db["数据库"]
+        style db fill:#dbeafe,stroke:#3b82f6
         subgraph tab["表 / 行 逻辑数据"]
+            style tab fill:#fef3c7,stroke:#f59e0b
             lock["Lock 行锁 表锁<br/>事务层<br/>持有到事务结束"]
         end
         subgraph mem["内存数据结构"]
+            style mem fill:#f0fdf4,stroke:#22c55e
             subgraph page["Page 页面"]
+                style page fill:#d4edda,stroke:#28a745
                 latch["Latch RWLatch<br/>存储层<br/>操作完即释放"]
             end
         end

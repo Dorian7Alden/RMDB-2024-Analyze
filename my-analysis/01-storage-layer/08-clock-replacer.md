@@ -47,7 +47,9 @@ void pin(frame_id_t frame_id) override {
 }
 ```
 
-`pin_counter_` 和缓冲池的 `pin_count_` 不是同一个东西——后者在 Page 对象里，前者在 ClockReplacer 数组里。两者数值应该一致，但各管各的。`pin_[i] = true` 的含义是：frame i **曾经被访问过**，victim 扫描到它时会宽容一次。
+- `pin_counter_` 和缓冲池的 `pin_count_` 不是同一个东西——后者在 Page 对象里，前者在 ClockReplacer 数组里。两者数值应该一致，但各管各的。
+
+- `pin_[i] = true` 的含义是：frame i **曾经被访问过**，victim 扫描到它时会宽容一次。
 
 ### unpin：标记可淘汰
 
@@ -84,9 +86,9 @@ bool victim(frame_id_t* frame_id) override {
 逐行解读：
 
 1. **指针循环前移**：`pointer_ = (pointer_ + 1) % N`，到数组末尾后回到 0
-2. **第一优先级：可淘汰 + 无豁免** → 直接选中返回
-3. **第二优先级：可淘汰 + 有豁免** → 清零豁免位（给第二次机会），继续扫描
-4. **不可淘汰**（pin_counter > 0）→ 跳过
+2. **第一关：`pin_counter_ > 0`** → 正在使用，直接跳过，不关心 pin_ 的值
+3. **第二关：`pin_counter_ == 0 && pin_ == true`** → 可淘汰但有豁免 → 清零 pin_，给第二次机会，继续扫描
+4. **命中：`pin_counter_ == 0 && pin_ == false`** → 可淘汰且无豁免 → 直接选中返回
 5. **最多扫两圈**：防止死循环，两圈后还没找到就返回 false
 
 ```mermaid
@@ -108,6 +110,11 @@ frame 3 又用完 → unpin(3):  pin_counter_[3] = 0,  pin_[3] = true  （引用
 ```
 
 关键点：`pin_[i]` 只在 pin 从 0→1 时设为 true，unpin 不清零。清零只在 victim 扫描时发生。
+
+> **强调：`pin_[i] = true` 的"宽容"只在 `pin_counter_ == 0` 时才生效。** 如果 frame 正在被使用（`pin_counter_ > 0`），victim 直接跳过它，根本不会去看 `pin_` 的值。Clock 的优先级是：
+> 1. `pin_counter_ > 0` → 在用，无条件跳过
+> 2. `pin_counter_ == 0 && pin_ == true` → 可淘汰，但给一次豁免（清零 pin_，下一轮再淘汰）
+> 3. `pin_counter_ == 0 && pin_ == false` → 可淘汰且无豁免，直接选中
 
 ## 分步演示
 

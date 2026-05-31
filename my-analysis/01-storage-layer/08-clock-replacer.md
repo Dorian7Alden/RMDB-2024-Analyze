@@ -66,6 +66,14 @@ void unpin(frame_id_t frame_id) override {
 >
 > 正常不会。ClockReplacer 自己没有防负数检查（就一行 `--`），安全网在缓冲池的 `unpin_page` 方法里：它先检查 `pin_count_ == 0` 就直接 return false，只有 `pin_count_` 从 1 减到 0 时才调 `replacer_->unpin()`。所以 pin 和 unpin 的调用次数是严格配对的——每次 unpin 一定对应之前的一次 pin。但如果缓冲池有 bug（比如对同一页重复 unpin），`pin_counter_` 确实可能被减成负数，ClockReplacer 自身不做防御。
 
+> **工程经验**：虽然逻辑上保证了 `pin_counter_` 不会为负，但从代码健壮性角度，`unpin()` 里加一行 `if (pin_counter_[frame_id] > 0)` 再 `--` 是更好的做法。理由有三：
+>
+> 1. **调用方可能犯错**：ClockReplacer 不控制谁调用它，未来如果有新代码绕过缓冲池直接调 unpin，负数 bug 极难排查
+> 2. **"信任调用方"的假设会随时间失效**：今天缓冲池的调用逻辑是正确的，明天有人重构 `unpin_page` 可能无意间打破这个假设
+> 3. **防御一行，调试省一天**：`if (pin_counter_[frame_id] > 0)` 只多一行代码，但万一出问题，bug 会在 ClockReplacer 内部暴露（pin_counter 异常），而不是在 victim 扫描时以诡异方式表现出来
+>
+> 框架代码为了简洁省略了这类防御，实际工程中值得加上。
+
 ### victim：选受害者
 
 ```cpp

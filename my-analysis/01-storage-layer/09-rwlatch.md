@@ -1,4 +1,4 @@
-# 10. RWLatch 读写锁
+# 09. RWLatch 读写锁
 
 ## 概述
 
@@ -128,6 +128,6 @@ class Page {
 - 与 Page Guard 配合：Guard 在构造时自动加锁，析构时自动释放锁和 unpin
 - 框架中完全没有这个模块，参考实现**从零实现**
 
-下一节：[11. 存储层实例串讲](./11-storage-structure-example.md)
+下一节：[10. 存储层实例串讲](./10-storage-structure-example.md)
 
-存储层的完整总结见：[12. 存储层总结](./12-storage-layer-summary.md)
+存储层的完整总结见：[11. 存储层总结](./11-storage-layer-summary.md)

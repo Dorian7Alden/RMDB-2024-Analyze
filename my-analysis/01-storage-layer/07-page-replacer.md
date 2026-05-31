@@ -52,25 +52,17 @@ flowchart TD
         N2 <--> TAIL["tail 最早 unpin"]
     end
 
-    subgraph HASH["LRUhash 哈希表 下标 0 到 N"]
-        direction LR
-        H0["0"]
-        H1["1"]
-        H2["2"]
-        H3["3 → 指向 N1"]
-        H4["4"]
-        H5["5 → 指向 N2"]
-        H6["6"]
-        H7["7 不在链表中 被 pin 着"]
-        HD["..."]
+    subgraph HASH["LRUhash unordered_map 只存链表中的 frame"]
+        H3["key: 3 → 指向 N1 节点"]
+        H5["key: 5 → 指向 N2 节点"]
     end
 
     H3 -.-> N1
     H5 -.-> N2
 ```
 
-- **`LRUlist_`（双向链表）**：只存"可淘汰"的 frame。首部 = 最近 unpin 的，尾部 = 最早 unpin 的。正在使用的 frame **不在此链表中**
-- **`LRUhash_`（哈希表）**：`frame_id` → 链表节点的迭代器。只有链表中的 frame 才在哈希表中有记录。上图 frame 7 正在被使用，所以哈希表中没有它的链表位置
+- **`LRUlist_`（双向链表）**：只存"可淘汰"的 frame。首部 = 最近 unpin 的，尾部 = 最早 unpin 的。正在使用的 frame（如 frame 7）**不在此链表中**
+- **`LRUhash_`（哈希表）**：`unordered_map<frame_id, 链表迭代器>`，只存链表中有记录的 frame。链表之外的 frame 在这里也找不到——pin 删链表节点的同时也会从哈希表 erase 掉
 
 > **注意：`LRUhash_` 是 `std::unordered_map`，不是数组。** 上图把哈希表画成 0, 1, 2, 3... 的横条只是为了跟 `LRUlist_` 里的 frame 编号对应，帮助理解"哪个 key 指向哪个链表节点"。实际上哈希表不会预分配 N 个槽位——pin 删一个 entry 它就少一个，不存在"空下标"的问题。`LRUlist_.size() == max_size_` 意味着链表中 frame 的数量碰巧等于缓冲池容量，这在正常运行中几乎不会发生。
 

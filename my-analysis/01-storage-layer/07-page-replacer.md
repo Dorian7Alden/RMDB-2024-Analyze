@@ -42,7 +42,7 @@ class LRUReplacer : public Replacer {
 #### 两个数据结构如何配合
 
 ```mermaid
-flowchart TD
+flowchart LR
     subgraph LIST["LRUlist 双向链表"]
         direction LR
         HEAD["head 最近访问"] <--> N1["frame 7 pin"]
@@ -53,15 +53,9 @@ flowchart TD
 
     subgraph HASH["LRUhash 哈希表 数组下标 0 到 N 每个下标对应一个 frame"]
         direction LR
-        H0["0 空"]
-        H1["1 空"]
-        H2["2 空"]
         H3["3 → 指向 N2"]
-        H4["4 空"]
         H5["5 → 指向 N3"]
-        H6["6 空"]
         H7["7 → 指向 N1"]
-        HD["..."]
     end
 
     H3 -.-> N2
@@ -168,6 +162,18 @@ flowchart LR
 - **pin 负责排序**：每次 pin 都把 frame 推到头部，时间越近越靠前
 - **unpin 负责放行**：不改变顺序，只标记"可淘汰"。不用链表位置来区分"是否可淘汰"，因为顺序另有他用
 - **victim 负责淘汰**：链表尾部就是"最早 pin 且之后一直没再 pin 过的"那个
+
+> **问：victim() 只从尾部取，没有检查 frame 7 是否还在使用。万一 7 还没 unpin 就被淘汰了怎么办？**
+>
+> 框架的 `LRUReplacer::unpin()` 确实是空函数——它完全不维护"谁可以淘汰、谁不可以淘汰"的状态。LRU 链表里**所有被访问过的 frame 都在**，不论 pin_count 是几。那安全网在哪？
+>
+> **安全网在缓冲池的 `find_victim_page`，不在 Replacer 内部。**
+>
+> 回看 [05. 单实例缓冲池](./05-buffer-pool-single.md) 的源码，`find_victim_page` 在调用 `replacer_->victim()` 之前，缓冲池已经持有了 `latch_` 锁。同一时刻只有一个线程在执行 `fetch_page`，而该线程在调用 `victim()` 后立即对 victim frame 执行 `update_page`。
+>
+> 但这不是关键——关键是：框架实现中 victim 确实可能选中一个 pin_count > 0 的 frame。框架的 LRUReplacer **没有区分"在用"和"可淘汰"**，它只是一个纯访问顺序记录器。这是框架实现的一个简化点：它假设"最久没被访问的 frame，大概率 pin_count 也归零了"。在单线程或低并发场景下这个假设成立，但在高并发下确实可能出问题。
+>
+> 正确的实现应该像 ClockReplacer：`pin()` 增加 `pin_counter_`（标记在用），`unpin()` 减少（标记可淘汰），`victim()` 只选 `pin_counter_ == 0` 的 frame。这就是为什么参考实现改用了 ClockReplacer——它不仅省了链表开销，更正确地隔离了"在用"和"可淘汰"两类 frame。
 
 ### 方法实现
 

@@ -21,11 +21,24 @@ RWLatch 是存储层最底层的并发控制原语。它是对 C++ 标准库 `st
 | 读 | 共享锁（Shared Lock） | 与其他读操作兼容（多人同时读） |
 | 写 | 排他锁（Exclusive Lock） | 不与任何人兼容（独占） |
 
+```mermaid
+flowchart LR
+    subgraph ok["兼容"]
+        style ok fill:#d4edda,stroke:#28a745,color:#155724
+        r_r["读锁 + 读锁<br/>同时进行"]
+    end
+    subgraph no["冲突 必须等待"]
+        style no fill:#f8d7da,stroke:#dc3545,color:#721c24
+        r_w["读锁 + 写锁<br/>写者等待"]
+        w_r["写锁 + 读锁<br/>读者等待"]
+        w_w["写锁 + 写锁<br/>后者等待"]
+    end
 ```
-读锁 × 读锁 = ✅ 兼容（多个读可以同时）
-读锁 × 写锁 = ❌ 冲突（读到一半被改，不行）
-写锁 × 写锁 = ❌ 冲突（两个写同时，数据乱套）
-写锁 × 读锁 = ❌ 冲突（写了一半有人读，不行）
+
+```mermaid
+flowchart LR
+    g["绿色块"] --- t1["兼容"]
+    r["红色块"] --- t2["冲突"]
 ```
 
 ## 数据结构与实现
@@ -79,6 +92,22 @@ DBMS 中的锁按**保护对象**和**持有时间**分不同级别：
 | 中层 | Lock（锁） | 逻辑数据（行、表等） | 毫秒~秒，事务结束时释放 | 行锁、表锁（事务层讲） |
 | 最顶层 | 全局锁 | 整个数据库 | 秒~分钟 | 全库备份锁（暂不涉及） |
 
+三层锁的从属关系——越往外层保护范围越大、持有时间越长：
+
+```mermaid
+flowchart TB
+    subgraph db["数据库"]
+        subgraph tab["表 / 行 逻辑数据"]
+            lock["Lock 行锁 表锁<br/>事务层<br/>持有到事务结束"]
+        end
+        subgraph mem["内存数据结构"]
+            subgraph page["Page 页面"]
+                latch["Latch RWLatch<br/>存储层<br/>操作完即释放"]
+            end
+        end
+    end
+```
+
 `RWLatch` 的命名刻意用了 **Latch** 而不是 Lock，因为它处于最底层——只保护一个 Page 对象在内存中的并发访问，不管这个 Page 上的数据在逻辑上属于哪个表、哪些行。逻辑层面的锁（行锁、表锁）由事务层负责，后续讲到事务时再展开。
 
 > **补充**：类名叫 `RWLatch`，但内部方法叫 `WLock`/`WUnlock`/`RLock`/`RUnlock`——这是因为底层调用的是 `std::shared_mutex` 的 `lock()`/`unlock()`/`lock_shared()`/`unlock_shared()`，方法名沿用了标准库的命名习惯。到了 Page 类的封装层（`WLatch()`/`WUnlatch()` 等），又统一回了 Latch 命名。
@@ -104,39 +133,52 @@ class Page {
 
 结合 Page Guard 和 RWLatch，一次完整的并发安全页面访问：
 
-```
-1. fetch_page(page_id)
-     → 从缓冲池获取 Page*
-     → 尚未加锁
-
-2. guard.UpgradeRead() / UpgradeWrite()
-     → BasicPageGuard → ReadPageGuard: 调用 page_->RLatch() （加读锁）
-     → BasicPageGuard → WritePageGuard: 调用 page_->WLatch() （加写锁）
-
-3. 读/写数据
-     → ReadPageGuard: GetData() 返回 const char*（只读）
-     → WritePageGuard: GetDataMut() 返回 char*（可写），自动标记脏页
-
-4. guard 离开作用域
-     → 析构函数自动调用 RUnlatch() / WUnlatch() 释放锁
-     → 自动调用 unpin_page()
+```mermaid
+flowchart TD
+    step1["1. fetch_page<br/>从缓冲池获取 Page<br/>尚未加锁"]
+    step1 --> step2_r["2a. UpgradeRead<br/>page.RLatch 加读锁<br/>获得 ReadPageGuard"]
+    step1 --> step2_w["2b. UpgradeWrite<br/>page.WLatch 加写锁<br/>获得 WritePageGuard"]
+    step2_r --> step3_r["3a. GetData<br/>返回 const char<br/>只读"]
+    step2_w --> step3_w["3b. GetDataMut<br/>返回 char 可写<br/>自动标记脏页"]
+    step3_r --> step4["4. guard 离开作用域<br/>析构: RUnlatch / WUnlatch<br/>自动 unpin_page"]
+    step3_w --> step4
 ```
 
-**实例**：两个线程同时访问 student 表第 1 页：
+**实例**：两个线程同时访问 student 表第 1 页。
 
+**场景一：两个线程都读**——读锁兼容，同时进行：
+
+```mermaid
+flowchart LR
+    subgraph page_a["student 表第 1 页 pin_count 为 2"]
+        subgraph thread_a1["线程 A 读"]
+            direction TB
+            a1["fetch_page"] --> a2["UpgradeRead<br/>RLatch 加读锁"] --> a3["GetData 读数据"] --> a4["析构: RUnlatch + unpin"]
+        end
+        subgraph thread_b1["线程 B 读"]
+            direction TB
+            b1["fetch_page"] --> b2["UpgradeRead<br/>RLatch 加读锁"] --> b3["GetData 读数据"] --> b4["析构: RUnlatch + unpin"]
+        end
+    end
+    a2 -.->|读锁兼容 同时持有| b2
 ```
-线程 A（读）:                         线程 B（读）:
-  fetch_page({fd:3, page_no:1})         fetch_page({fd:3, page_no:1})
-  → pin_count_ = 1                      → pin_count_ = 2 (同一页)
-  → UpgradeRead() → RLatch()  ✅        → UpgradeRead() → RLatch()  ✅
-  → GetData() 读数据                    → GetData() 读数据
-  → ~ReadPageGuard: RUnlatch, unpin     → ~ReadPageGuard: RUnlatch, unpin
 
-线程 A（写）:                         线程 B（读）:
-  fetch_page({fd:3, page_no:1})         fetch_page({fd:3, page_no:1})
-  → UpgradeWrite() → WLatch()  ✅       → UpgradeRead() → RLatch()  ⏳ 等待！
-  → GetDataMut() 修改数据               → ...
-  → ~WritePageGuard: WUnlatch, unpin    → 获得锁 → 读到修改后的数据
+**场景二：一个写一个读**——写锁排斥读锁，读者必须等待：
+
+```mermaid
+flowchart LR
+    subgraph page_b["student 表第 1 页"]
+        subgraph thread_a2["线程 A 写"]
+            direction TB
+            wa1["fetch_page"] --> wa2["UpgradeWrite<br/>WLatch 加写锁"] --> wa3["GetDataMut 修改数据"] --> wa4["析构: WUnlatch + unpin"]
+        end
+        subgraph thread_b2["线程 B 读"]
+            direction TB
+            wb1["fetch_page"] --> wb2["尝试 UpgradeRead<br/>RLatch 等待..."] --> wb3["获得读锁"] --> wb4["GetData 读取<br/>修改后的数据"] --> wb5["析构: RUnlatch + unpin"]
+        end
+    end
+    wa2 -.->|写锁排斥读锁| wb2
+    wa4 -.->|写锁释放 读锁获得| wb3
 ```
 
 ## 框架 vs 参考实现

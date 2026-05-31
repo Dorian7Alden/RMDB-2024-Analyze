@@ -23,7 +23,8 @@
 | 04 | [缓冲池概述](./04-buffer-pool-overview.md) | 为什么要缓冲池、核心概念（pin/unpin/脏页） | 理解 |
 | 05 | [单实例缓冲池](./05-buffer-pool-single.md) | 框架给的基础版本：page_table、free_list、LRU | 掌握 |
 | 06 | [多实例缓冲池](./06-buffer-pool-multi.md) | 分区并发优化：BufferPoolInstance | **核心** |
-| 07 | [页面替换算法](./07-page-replacer.md) | LRU 与 Clock 两种 Replacer 算法 | **核心** |
+| 07 | [LRU 页面替换](./07-lru-replacer.md) | LRUReplacer：双向链表 + 哈希表精确 LRU | **核心** |
+| 07a | [Clock 时钟替换](./07a-clock-replacer.md) | ClockReplacer：定长数组近似 LRU 二次机会 | **核心** |
 | 08 | [Page Guard](./08-page-guard.md) | RAII 页面守卫：自动 unpin | **核心** |
 | 09 | [RWLatch 读写锁](./09-rwlatch.md) | 页面级读写锁 | **核心** |
 | 10 | [存储层实例串讲](./10-storage-structure-example.md) | 用具体实例串联所有组件，建立整体认知 | 综合 |

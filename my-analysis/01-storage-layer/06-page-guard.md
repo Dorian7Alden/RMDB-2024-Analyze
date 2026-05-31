@@ -64,7 +64,7 @@ void BasicPageGuard::Drop() {
 }
 ```
 
-上层调用者（RM、IX 等）通过 Guard 访问页面数据：只读场景调用 `GetData()`，修改场景调用 `GetDataMut()`（后者自动标记脏页）：
+上层调用者（RM、IX 等）通过 Guard **访问页面数据**：只读场景调用 `GetData()`，修改场景调用 `GetDataMut()`（后者自动标记脏页）：
 
 ```cpp
 auto GetData() const -> const char* { return page_->get_data(); }
@@ -125,6 +125,69 @@ auto guard2 = std::move(guard1);         // 所有权转移给 guard2
 // guard1 现在是空的，不会 unpin
 // guard2 离开作用域时会自动 unpin
 ```
+
+### 为什么需要移动语义
+
+先理解一个生活类比——**房产证过户**：
+
+> 你有一套房子的房产证。房产证不允许复印（复印的无效），只允许过户。当你想把房子转给另一个人时，你去房管局把证上的名字改成他——从此房子是他的，你手上什么都没有了。
+
+Page Guard 的处境一模一样：**一个页面在同一时刻只应该有一个 Guard 负责释放**。如果允许"拷贝"Guard，就会出现两个 Guard 持有同一个页面，两个析构函数都会去 unpin，后果是：
+- 第一个析构正常 unpin
+- 第二个析构对已经释放的页面再 unpin 一次——**重复释放**，逻辑错误
+
+所以 Guard 的设计是：**禁止拷贝，只允许移动**。移动 = 所有权的转移，就像房产证过户。
+
+#### 拷贝 vs 移动
+
+```
+拷贝构造:                   移动构造:
+                         
+   guard1 ──→ [页面A]        guard1 ──→ (空壳)
+      │                        
+      ├──→ [页面A] 副本       guard2 ──→ [页面A]
+   guard2 ──→ [页面A]                      
+                         
+ 两个 Guard 指向同一页面！     只有一个 Guard 持有页面。
+ 析构时 unpin 两次 → bug     析构时 unpin 一次 → 正确。
+```
+
+#### 三个关键语法
+
+**`= delete` —— 禁止拷贝**
+
+```cpp
+BasicPageGuard(const BasicPageGuard&) = delete;  // 不允许拷贝构造
+```
+编译器一旦看到 `guard2 = guard1` 这种拷贝行为，直接报错。
+
+**`&&` —— 右值引用，代表"移动源"**
+
+```cpp
+BasicPageGuard(BasicPageGuard&& that) noexcept;   // 移动构造函数
+```
+参数 `that` 前的 `&&` 表示：这个参数是"即将被掏空的对象"。函数体内把 `that` 的内部资源（`page_`、`bpm_`）转移给 `this`，然后把 `that` 的指针置空。
+
+**`std::move` —— 显式声明"我愿意转移所有权"**
+
+```cpp
+auto guard2 = std::move(guard1);
+```
+`std::move` 本身不做任何移动操作。它只是把 `guard1` 标记为"可以被移动"，然后编译器匹配到移动构造函数，完成资源转移。转移后 `guard1` 变成空壳，不能再使用。
+
+#### 在 Page Guard 中的实际应用
+
+回到文档开头的"完整使用实例"，`UpgradeRead()` 和 `UpgradeWrite()` 内部就使用了移动语义：
+
+```cpp
+auto BasicPageGuard::UpgradeWrite() -> WritePageGuard {
+    page_->WLatch();                            // 1. 先加写锁
+    WritePageGuard write_guard(bpm_, page_);    // 2. 创建新的 WritePageGuard
+    return write_guard;                         // 3. 移动返回，所有权转移
+}                                               //    调用方的 write_guard 接手
+```
+
+关键点：`return write_guard` 这里触发了移动构造。函数内的 `write_guard` 把 `bpm_` 和 `page_` 转移给了调用方接收的变量，自己变成空壳。调用方拿到的是**唯一持有页面**的 Guard。
 
 ## 完整使用实例
 

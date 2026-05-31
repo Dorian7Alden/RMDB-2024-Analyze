@@ -39,39 +39,70 @@ class LRUReplacer : public Replacer {
 
 **LRU（Least Recently Used，最近最少使用）**：核心思路就是"最近用过的别淘汰，最久没用的先淘汰"。
 
+**关键规则**：LRU 链表里**只放可淘汰的 frame**（即 pin_count 已归零、调过 unpin 的）。正在被使用的 frame（pin 着）**不在链表中**。
+
 #### 两个数据结构如何配合
 
 ```mermaid
-flowchart LR
-    subgraph LIST["LRUlist 双向链表"]
+flowchart TD
+    subgraph LIST["LRUlist 双向链表 只存可淘汰 frame"]
         direction LR
-        HEAD["head 最近访问"] <--> N1["frame 7 pin"]
-        N1 <--> N2["frame 3 unpin"]
-        N2 <--> N3["frame 5 unpin"]
-        N3 <--> TAIL["tail 最久未用"]
+        HEAD["head 最近 unpin"] <--> N1["frame 3 可淘汰"]
+        N1 <--> N2["frame 5 可淘汰"]
+        N2 <--> TAIL["tail 最早 unpin"]
     end
 
-    subgraph HASH["LRUhash 哈希表 数组下标 0 到 N 每个下标对应一个 frame"]
+    subgraph HASH["LRUhash 哈希表 下标 0 到 N"]
         direction LR
-        H3["3 → 指向 N2"]
-        H5["5 → 指向 N3"]
-        H7["7 → 指向 N1"]
+        H0["0"]
+        H1["1"]
+        H2["2"]
+        H3["3 → 指向 N1"]
+        H4["4"]
+        H5["5 → 指向 N2"]
+        H6["6"]
+        H7["7 不在链表中 被 pin 着"]
+        HD["..."]
     end
 
-    H3 -.-> N2
-    H5 -.-> N3
-    H7 -.-> N1
+    H3 -.-> N1
+    H5 -.-> N2
 ```
 
-- **`LRUlist_`（双向链表）**：维护访问顺序。首部是最近访问的，尾部是最久未访问的
-- **`LRUhash_`（哈希表）**：`frame_id` → 链表节点的迭代器。没这个哈希表，每次在链表中找某个 frame 就得从头到尾遍历（O(n)），有了它直接 O(1) 定位
+- **`LRUlist_`（双向链表）**：只存"可淘汰"的 frame。首部 = 最近 unpin 的，尾部 = 最早 unpin 的。正在使用的 frame **不在此链表中**
+- **`LRUhash_`（哈希表）**：`frame_id` → 链表节点的迭代器。只有链表中的 frame 才在哈希表中有记录。上图 frame 7 正在被使用，所以哈希表中没有它的链表位置
+
+#### pin 和 unpin 的正确逻辑
+
+```cpp
+// db2026-x/src/replacer/lru_replacer.cpp:44-54（框架）
+void LRUReplacer::pin(frame_id_t frame_id) {
+    // Todo: 固定指定id的frame, 在数据结构中移除该frame
+    auto it = LRUhash_.find(frame_id);
+    if(it == LRUhash_.end()) return;    // 不在链表中，说明从未 unpin 或已被 pin 过
+    LRUlist_.erase(it->second);         // 从链表中删除 —— 不再可淘汰！
+    LRUhash_.erase(it);
+}
+
+// db2026-x/src/replacer/lru_replacer.cpp:60-75（框架）
+void LRUReplacer::unpin(frame_id_t frame_id) {
+    if(LRUlist_.size() == max_size_) return;
+    auto it = LRUhash_.find(frame_id);
+    if(it != LRUhash_.end()) return;    // 已在链表中，不重复添加
+    LRUlist_.emplace_front(frame_id);   // 加到链表首部 —— 刚刚 unpin，最近被用过
+    LRUhash_.try_emplace(frame_id, LRUlist_.begin());
+}
+```
+
+| 方法 | 对链表做什么 | 含义 |
+|------|------------|------|
+| `pin` | **从链表删除** | "这个 frame 正在用，不许淘汰它" |
+| `unpin` | **加到链表首部** | "这个 frame 用完了，可以淘汰。但我刚用完，放最前面" |
+| `victim` | **取链表尾部** | 尾部 = 最早 unpin 的 = 最久没再被访问的 |
 
 #### 分步演示
 
-以三个 frame 为例，跟踪每一步操作后链表的变化。记住两个口诀：
-
-- **pin = "推到最前面"**（要么插入首部，要么从原位置移到首部）
-- **unpin ≠ "删掉"**，unpin 不改变链表位置！顺序只由 pin（访问时间）决定，unpin 只是"放行"——表示这个 frame 现在可以被 victim 淘汰了
+以三个 frame 为例，跟踪 buffer pool 的完整操作周期。注意：**只有 unpin 才会把 frame 加入链表，pin 会把它摘出去**。
 
 ```mermaid
 flowchart LR
@@ -83,111 +114,77 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    subgraph S1["步骤 1: pin frame 3 首次访问"]
+    subgraph S1["步骤 1: frame 3 首次加载并 unpin"]
         direction LR
         H1["head"] --> N3["3"] --> T1["tail"]
     end
-    NB1["链表为空 直接 push_front\n3 既是首也是尾"]:::sticky -.-> N3
+    NB1["fetch_page 加载 3\n用法结束后 unpin 3\nunpin 把 3 加入链表首部"]:::sticky -.-> N3
     classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
 ```
 
 ```mermaid
 flowchart LR
-    subgraph S2["步骤 2: pin frame 7 首次访问"]
+    subgraph S2["步骤 2: frame 7 首次加载并 unpin"]
         direction LR
-        H2["head"] --> N7["7"] --> N3["3"] --> T2["tail"]
+        H2["head"] --> N7["7"] --> N3b["3"] --> T2["tail"]
     end
-    NB2["7 入首部 3 被推到第二位"]:::sticky -.-> N7
+    NB2["unpin 7 加到首部\n3 被推到第二位\n7 刚用完 比 3 更新"]:::sticky -.-> N7
     classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
 ```
 
 ```mermaid
 flowchart LR
-    subgraph S3["步骤 3: 再次 pin frame 3"]
+    subgraph S3["步骤 3: 再次访问 frame 3 然后又 unpin"]
         direction LR
-        H3["head"] --> N3b["3"] --> N7b["7"] --> T3["tail"]
+        H3["head"] --> N3c["3"] --> N7b["7"] --> T3["tail"]
     end
-    NB3["3 已在链表中\n先 erase 从尾部位置摘下来\n再 push_front 推到首部"]:::sticky -.-> N3b
+    NB3["fetch_page 3 → pin 3\npin 把 3 从链表删掉 3 进入使用状态\n用法结束 unpin 3 重新加入首部"]:::sticky -.-> N3c
     classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
 ```
 
 ```mermaid
 flowchart LR
-    subgraph S4["步骤 4: pin frame 5"]
+    subgraph S4["步骤 4: frame 5 首次加载并 unpin"]
         direction LR
-        H4["head"] --> N5["5"] --> N3c["3"] --> N7c["7"] --> T4["tail"]
+        H4["head"] --> N5["5"] --> N3d["3"] --> N7c["7"] --> T4["tail"]
     end
 ```
 
 ```mermaid
 flowchart LR
-    subgraph S5["步骤 5: unpin frame 3"]
+    subgraph S5["步骤 5: victim 选受害者 缓冲池满需要腾位置"]
         direction LR
-        H5["head"] --> N5b["5"] --> N3d["3 已 unpin"] --> N7d["7"] --> T5["tail"]
+        H5["head"] --> N5b["5"] --> N3e["3"] --> T5["tail"]
     end
-    NB5["unpin 不改变链表位置\n3 仍然在 5 后面"]:::sticky -.-> N3d
-    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
-```
-
-```mermaid
-flowchart LR
-    subgraph S6["步骤 6: unpin frame 5"]
-        direction LR
-        H6["head"] --> N5c["5 已 unpin"] --> N3e["3 已 unpin"] --> N7e["7"] --> T6["tail"]
-    end
-    NB6["5 也 unpin 了 顺序依旧不变"]:::sticky -.-> N5c
-    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray: 4
-```
-
-```mermaid
-flowchart LR
-    subgraph S7["步骤 7: victim 选受害者"]
-        direction LR
-        H7["head"] --> N5d["5 已 unpin"] --> N3f["3 已 unpin"] --> T7["tail"]
-    end
-    NB7["取尾部 7 淘汰\n7 从步骤 2 起就没再被 pin 过\n一直待在尾部"]:::victim -.-> T7
+    NB5["取尾部 7 淘汰\n7 从步骤 2 unpin 后再没被访问过\n是最久未用的"]:::victim -.-> T5
     classDef victim fill:#ffcdd2,stroke:#c62828,stroke-dasharray: 4
 ```
 
-步骤 7 中 victim 选了 frame 7 而不是 3，为什么？因为 5 和 3 虽然都 unpin 了，但**3 在步骤 3 被重新 pin 过**，被推到了前面，而 7 从步骤 2 之后就没再被 pin 过，一直待在链表尾部——**谁最久没被访问，谁在尾部**。
+步骤 5 淘汰了 7 而不是 3，因为 3 在步骤 3 被重新访问（pin 摘掉又 unpin 加回首部），而 7 从步骤 2 之后就没再被碰过——**谁最久没被再次访问，谁沉到尾部。**
+
+> **关键理解**：victim 能安全地从尾部取，因为链表中**全是已 unpin 的 frame**——正在使用的 frame 早就被 pin 摘出去了，根本不在链表里。不存在"误淘汰正在使用的 frame"的问题。
 
 #### pin、unpin、victim 三者的分工
 
-| 方法 | 改链表位置？ | 做什么 | 口诀 |
-|------|:--------:|------|------|
-| `pin` | 是 | 把 frame 推到链表首部 | "刚用过，排最前" |
-| `unpin` | 否 | 不改变位置，只标记"可淘汰" | "用完了，可以踢" |
-| `victim` | 是 | 取链表尾部，删除它 | "最久没用的，淘汰" |
-
-- **pin 负责排序**：每次 pin 都把 frame 推到头部，时间越近越靠前
-- **unpin 负责放行**：不改变顺序，只标记"可淘汰"。不用链表位置来区分"是否可淘汰"，因为顺序另有他用
-- **victim 负责淘汰**：链表尾部就是"最早 pin 且之后一直没再 pin 过的"那个
-
-> **问：victim() 只从尾部取，没有检查 frame 7 是否还在使用。万一 7 还没 unpin 就被淘汰了怎么办？**
->
-> 框架的 `LRUReplacer::unpin()` 确实是空函数——它完全不维护"谁可以淘汰、谁不可以淘汰"的状态。LRU 链表里**所有被访问过的 frame 都在**，不论 pin_count 是几。那安全网在哪？
->
-> **安全网在缓冲池的 `find_victim_page`，不在 Replacer 内部。**
->
-> 回看 [05. 单实例缓冲池](./05-buffer-pool-single.md) 的源码，`find_victim_page` 在调用 `replacer_->victim()` 之前，缓冲池已经持有了 `latch_` 锁。同一时刻只有一个线程在执行 `fetch_page`，而该线程在调用 `victim()` 后立即对 victim frame 执行 `update_page`。
->
-> 但这不是关键——关键是：框架实现中 victim 确实可能选中一个 pin_count > 0 的 frame。框架的 LRUReplacer **没有区分"在用"和"可淘汰"**，它只是一个纯访问顺序记录器。这是框架实现的一个简化点：它假设"最久没被访问的 frame，大概率 pin_count 也归零了"。在单线程或低并发场景下这个假设成立，但在高并发下确实可能出问题。
->
-> 正确的实现应该像 ClockReplacer：`pin()` 增加 `pin_counter_`（标记在用），`unpin()` 减少（标记可淘汰），`victim()` 只选 `pin_counter_ == 0` 的 frame。这就是为什么参考实现改用了 ClockReplacer——它不仅省了链表开销，更正确地隔离了"在用"和"可淘汰"两类 frame。
+| 方法 | 改链表？ | 做什么 | 谁在链表中？ |
+|------|:---:|------|------|
+| `pin` | 是 | 把 frame **从链表中摘掉** | 摘掉后 frame 不在链表中 |
+| `unpin` | 是 | 把 frame **加到链表首部** | 加入后 frame 在链表中 |
+| `victim` | 是 | 取链表尾部，淘汰它 | 取走后 frame 不在链表中 |
 
 ### 方法实现
 
-**pin(frame_id)**：frame 被访问了，把它移到链表首部。
+**pin(frame_id)**：frame 正在被使用，从可淘汰链表中摘掉它。
 
 ```cpp
-// db2026-x/src/replacer/lru_replacer.cpp:44
+// db2026-x/src/replacer/lru_replacer.cpp:44-54（框架，待完善）
 void LRUReplacer::pin(frame_id_t frame_id) {
-    auto it = LRUhash_.find(frame_id);      // 1. 查哈希: 这个 frame 是否已在链表中?
-    if (it != LRUhash_.end()) {
-        LRUlist_.erase(it->second);         // 2a. 已存在 → 从原位置摘下来
-    }
-    LRUlist_.push_front(frame_id);          // 3. 推到 / 插入到链表首部
-    LRUhash_[frame_id] = LRUlist_.begin();  // 4. 更新哈希映射到新位置
+    std::scoped_lock lock{latch_};
+    // Todo: 固定指定id的frame, 在数据结构中移除该frame
+    auto it = LRUhash_.find(frame_id);      // 1. 查哈希: 这个 frame 在链表中吗?
+    if(it == LRUhash_.end()) return;        // 2. 不在链表中（从未 unpin 过），不用处理
+    LRUlist_.erase(it->second);             // 3. 在链表中 → 删掉！它现在被用了，不可淘汰
+    LRUhash_.erase(it);                     // 4. 哈希同步删除
 }
 ```
 
@@ -195,35 +192,44 @@ void LRUReplacer::pin(frame_id_t frame_id) {
 
 | 情况 | 例子 | LRUhash 能找到？ | 链表操作 | 效果 |
 |------|------|:---:|------|------|
-| **首次 pin** | `pin(7)`，7 从未在链表中 | 否 | `push_front(7)` | 在首部插入一个新节点 |
-| **再次 pin** | `pin(3)`，3 已在链表某个位置 | 是 | `erase` + `push_front(3)` | 把 3 从原位置摘下来，重新插到首部 |
+| frame 在链表中 | `pin(3)`，3 已经 unpin 过 | 是 | `erase` 删除节点 | 3 从链表中消失，不再可淘汰 |
+| frame 不在链表中 | `pin(7)`，7 从未 unpin 过 | 否 | 无操作，直接 return | 7 本来就不在可淘汰列表里 |
 
-不管哪种情况，最终 frame_id 一定在链表首部。这就是 LRU 的"最近用了往前排"。
+pin 不是"把东西移到前面"，而是**把东西拿走**——拿走了它才安全，不会被 victim 选中。
 
-**unpin(frame_id)**：frame 不再被使用（pin_count 归零），可以被淘汰了：
+**unpin(frame_id)**：frame 用完了，加入可淘汰链表。
 
 ```cpp
-// db2026-x/src/replacer/lru_replacer.cpp:60
+// db2026-x/src/replacer/lru_replacer.cpp:60-75（框架，待完善）
 void LRUReplacer::unpin(frame_id_t frame_id) {
-    // 注意：unpin 不改变链表位置！
-    // 链表顺序由 pin（访问）决定，unpin 只是"放行"
+    // Todo: 支持并发锁, 选择一个frame取消固定
+    std::scoped_lock lock{latch_};
+    if(LRUlist_.size() == max_size_) return;      // 1. 链表满了不加
+    auto it = LRUhash_.find(frame_id);
+    if(it != LRUhash_.end()) return;              // 2. 已在链表中，不重复加
+    LRUlist_.emplace_front(frame_id);             // 3. 加到链表首部 —— 刚用完，最新
+    LRUhash_.try_emplace(frame_id, LRUlist_.begin());
 }
 ```
 
-**victim(frame_id)**：选一个受害者。逻辑很简单——直接取链表尾部：
+加到**首部**而不是尾部：因为刚 unpin 说明"刚被用过"，应该排在"最不可能被淘汰"的位置。
+
+**victim(frame_id)**：选一个受害者，取链表尾部。
 
 ```cpp
-// db2026-x/src/replacer/lru_replacer.cpp:22
+// db2026-x/src/replacer/lru_replacer.cpp:22-38（框架，待完善）
 bool LRUReplacer::victim(frame_id_t* frame_id) {
-    if (LRUlist_.empty()) return false;         // 没有可淘汰的
-    *frame_id = LRUlist_.back();                // 取尾部，即最久未访问的
-    LRUlist_.pop_back();                        // 从链表删除
-    LRUhash_.erase(*frame_id);                  // 从哈希表同步删除
+    std::scoped_lock lock{latch_};
+    // Todo: 利用lru_replacer中的LRUlist_,LRUHash_实现LRU策略
+    if(LRUlist_.empty() || frame_id == nullptr) return false;
+    *frame_id = LRUlist_.back();                // 取尾部，最早 unpin 的 = 最久没再被碰过
+    LRUlist_.pop_back();
+    LRUhash_.erase(*frame_id);
     return true;
 }
 ```
 
-回想上文分步演示的步骤 7：调用 `victim()` 时链表是 `[5] → [3] → [7]`，`back()` 返回 7——因为 7 从步骤 2 被 pin 之后就没再被碰过，一直待在尾部。pop_back 后链表变成 `[5] → [3]`，7 从哈希表中也一并删除。
+回想上文分步演示的步骤 5：链表是 `[5] → [3] → [7]`，`back()` 返回 7——7 从步骤 2 unpin 后一直沉在尾部，再也没被访问过。**链表里全是 unpin 过的 frame，不存在误淘汰正在使用的 frame 的风险。**
 
 ## ClockReplacer
 

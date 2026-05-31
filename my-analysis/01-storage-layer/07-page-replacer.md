@@ -79,6 +79,16 @@ flowchart TD
 > - frame 正在用 → 不在链表里
 >
 > 没有中间状态，不需要额外字段。pin 就是"从名单上划掉"，unpin 就是"加入名单"，victim 只管从名单尾部取——名单上的每一个都保证可淘汰。
+>
+> **问：不在链表中的 frame 去哪了？还存在吗？**
+>
+> 当然存在，只是 Replacer 看不见它了。frame 本身是缓冲池 `pages_` 数组里的一个 Page 对象，靠 `page_table_` 的 PageId → frame_id 映射来查找，一直在内存里。Replacer 只是缓冲池的一个"辅助组件"，只负责回答"淘汰谁"，不负责存储 frame 本身。frame 被 pin 摘出链表后：
+> - 缓冲池的 `pages_[frame_id]` — 还在，正常使用
+> - 缓冲池的 `page_table_` — 还在，正常映射
+> - Replacer 的 `LRUlist_` — 不在了（被 pin 摘掉了）
+> - Replacer 的 `LRUhash_` — 不在了（跟着链表一起删了）
+>
+> 等这个 frame 用完了 unpin，再重新加入 LRUlist_ 和 LRUhash_，Replacer 又能看见它了。
 
 #### pin 和 unpin 的正确逻辑
 

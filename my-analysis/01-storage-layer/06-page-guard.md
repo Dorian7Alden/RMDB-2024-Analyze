@@ -64,7 +64,7 @@ void BasicPageGuard::Drop() {
 }
 ```
 
-只读数据用 `GetData()`，修改数据用 `GetDataMut()`（自动标记脏页）：
+上层调用者（RM、IX 等）通过 Guard 访问页面数据：只读场景调用 `GetData()`，修改场景调用 `GetDataMut()`（后者自动标记脏页）：
 
 ```cpp
 auto GetData() const -> const char* { return page_->get_data(); }

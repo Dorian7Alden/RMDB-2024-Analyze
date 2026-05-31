@@ -42,17 +42,31 @@ class LRUReplacer : public Replacer {
 #### 两个数据结构如何配合
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph LIST["LRUlist 双向链表"]
         direction LR
-        HEAD["head 首部\n最近访问的"] -->|"→"| N1["frame 7\npin"] -->|"→"| N2["frame 3\nunpin"] -->|"→"| N3["frame 5\nunpin"] -->|"→"| TAIL["tail 尾部\n最久未用的"]
+        HEAD["head 最近访问"] <--> N1["frame 7 pin"]
+        N1 <--> N2["frame 3 unpin"]
+        N2 <--> N3["frame 5 unpin"]
+        N3 <--> TAIL["tail 最久未用"]
     end
-    subgraph HASH["LRUhash 哈希表"]
-        H1["7 → 指向 N1 节点位置"]
-        H2["3 → 指向 N2 节点位置"]
-        H3["5 → 指向 N3 节点位置"]
+
+    subgraph HASH["LRUhash 哈希表 数组下标 0 到 N 每个下标对应一个 frame"]
+        direction LR
+        H0["0 空"]
+        H1["1 空"]
+        H2["2 空"]
+        H3["3 → 指向 N2"]
+        H4["4 空"]
+        H5["5 → 指向 N3"]
+        H6["6 空"]
+        H7["7 → 指向 N1"]
+        HD["..."]
     end
-    LIST -.-> HASH
+
+    H3 -.-> N2
+    H5 -.-> N3
+    H7 -.-> N1
 ```
 
 - **`LRUlist_`（双向链表）**：维护访问顺序。首部是最近访问的，尾部是最久未访问的

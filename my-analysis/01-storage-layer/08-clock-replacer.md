@@ -1,4 +1,4 @@
-# 07a. Clock 时钟替换算法
+# 08. Clock 时钟替换算法
 
 ## 问题：LRU 的不足
 
@@ -233,4 +233,4 @@ pointer=0: pin_counter=0, pin=false → 淘汰 frame 0！
 - 被访问过的 frame 获得一次豁免：引用位为 true 时不淘汰，清零后多活一轮
 - 比 LRU 更轻量：纯数组操作，零动态分配，适合分区小池子
 
-下一节：[08. Page Guard RAII 机制](./08-page-guard.md)
+下一节：[09. Page Guard RAII 机制](./09-page-guard.md)

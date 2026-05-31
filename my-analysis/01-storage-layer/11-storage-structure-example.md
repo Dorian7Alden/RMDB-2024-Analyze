@@ -1,8 +1,8 @@
-# 10. 存储层实例串讲
+# 11. 存储层实例串讲
 
 ## 概述
 
-前面 01~09 逐一讲解了存储层的各个组件。本文用一个具体的实例从头到尾把所有组件串起来，建立整体认知。
+前面 01~10 逐一讲解了存储层的各个组件。本文用一个具体的实例从头到尾把所有组件串起来，建立整体认知。
 
 **贯穿全文的实例**：
 
@@ -33,8 +33,9 @@ mydb/
 `student.db` 文件在磁盘上的完整布局：
 
 ```mermaid
-flowchart TD
+flowchart LR
     subgraph FILE["student.db 文件 4 页 x 4096B = 16384 字节"]
+        direction LR
         subgraph P0["第 0 页 文件头"]
             HDR["RmFileHdr\nrecord_size=28 num_pages=4\nnum_records_per_page=140\nfirst_free_page_no=3 bitmap_size=18"]
             GAP["剩余 4076 字节空白闲置"]
@@ -48,6 +49,7 @@ flowchart TD
         subgraph P3["第 3 页 数据页 有空位"]
             R3["60 条记录 id 281 到 340\n剩 80 个空位"]
         end
+        P0 --> P1 --> P2 --> P3
     end
 ```
 
@@ -87,19 +89,40 @@ offset  size    内容
 
 ```mermaid
 flowchart LR
-    subgraph PAGE["第 1 页 4096 字节"]
+    subgraph PAGE["第 1 页（4096 字节）"]
         direction LR
-        LSN["LSN\n4B\noffset 0"]
-        HDR2["RmPageHdr\n8B\noffset 4"]
-        BM["Bitmap\n18B\noffset 12"]
-        subgraph DATA["记录数据区 3920B offset 30"]
-            direction LR
-            REC1["record 0\nid:1 name:Alice age:20\n28B"]
-            REC2["record 1\nid:2 name:Bob age:22\n28B"]
-            REC3["..."]
-            REC140["record 139\nid:140 name:Zoe age:19\n28B"]
+
+        subgraph HEADER["页眉区域（30 字节，偏移 0-30）"]
+            direction TB
+            LSN["LSN<br>4 字节<br>偏移 0"]
+            HDR["RmPageHdr<br>8 字节<br>偏移 4"]
+            BM["Bitmap<br>18 字节<br>偏移 12"]
+            LSN --> HDR --> BM
         end
+
+        subgraph DATA["记录数据区（3920 字节，偏移 30-3950）"]
+            direction TB
+            REC1["记录 0<br>28 字节<br>偏移 30-58"]
+            REC2["记录 1<br>28 字节<br>偏移 58-86"]
+            REC_DUMMY["...<br>记录 2 到 138<br>（共 137 条记录）"]
+            REC140["记录 139<br>28 字节<br>偏移 3922-3950"]
+
+            REC1 --> REC2 --> REC_DUMMY --> REC140
+        end
+
+        subgraph FREE["空闲 / 页尾区域（146 字节，偏移 3950-4096）"]
+            direction LR
+            FREE_SPACE["未使用空间<br>146 字节"]
+        end
+
+        HEADER --> DATA --> FREE
     end
+
+    style REC_DUMMY fill:#f9f,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5
+    style PAGE fill:#f9f9f9,stroke:#333,stroke-width:2px
+    style HEADER fill:#e6f3ff,stroke:#333,stroke-width:1px
+    style DATA fill:#e6ffe6,stroke:#333,stroke-width:1px
+    style FREE fill:#fff0e6,stroke:#333,stroke-width:1px
 ```
 
 **Bitmap 的作用**：快速判断某个槽位是否已占用，以及快速找到空闲槽位。插入时不需要遍历记录内容，直接查 bitmap 空位即可。
@@ -266,7 +289,7 @@ flowchart TD
 
 ## 所有组件的协作全景图
 
-把 01~09 学过的所有组件放到同一张图里：
+把 01~10 学过的所有组件放到同一张图里：
 
 ```mermaid
 flowchart TD
@@ -333,6 +356,6 @@ flowchart TD
 - **读写分离**：读命中直接返回，写标记脏页延迟写回，崩溃靠 WAL 恢复
 - **并发控制**：多实例分区消除全局锁，RWLatch 实现页面级读写锁，Page Guard 自动管理 pin 计数
 
-下一节：[11. 存储层总结](./11-storage-layer-summary.md) — 各模块框架状态与核心学习点汇总
+下一节：[12. 存储层总结](./12-storage-layer-summary.md) — 各模块框架状态与核心学习点汇总
 
 下一章：[第 2 章：记录层](../02-record-layer/README.md)（待编写）

@@ -24,11 +24,11 @@
 | 05 | [单实例缓冲池](./05-buffer-pool-single.md) | 框架给的基础版本：page_table、free_list、LRU | 掌握 |
 | 06 | [多实例缓冲池](./06-buffer-pool-multi.md) | 分区并发优化：BufferPoolInstance | **核心** |
 | 07 | [LRU 页面替换](./07-lru-replacer.md) | LRUReplacer：双向链表 + 哈希表精确 LRU | **核心** |
-| 07a | [Clock 时钟替换](./07a-clock-replacer.md) | ClockReplacer：定长数组近似 LRU 二次机会 | **核心** |
-| 08 | [Page Guard](./08-page-guard.md) | RAII 页面守卫：自动 unpin | **核心** |
-| 09 | [RWLatch 读写锁](./09-rwlatch.md) | 页面级读写锁 | **核心** |
-| 10 | [存储层实例串讲](./10-storage-structure-example.md) | 用具体实例串联所有组件，建立整体认知 | 综合 |
-| 11 | [存储层总结](./11-storage-layer-summary.md) | 各模块框架状态与核心学习点汇总 | 总结 |
+| 08 | [Clock 时钟替换](./08-clock-replacer.md) | ClockReplacer：定长数组近似 LRU 二次机会 | **核心** |
+| 09 | [Page Guard](./09-page-guard.md) | RAII 页面守卫：自动 unpin | **核心** |
+| 10 | [RWLatch 读写锁](./10-rwlatch.md) | 页面级读写锁 | **核心** |
+| 11 | [存储层实例串讲](./11-storage-structure-example.md) | 用具体实例串联所有组件，建立整体认知 | 综合 |
+| 12 | [存储层总结](./12-storage-layer-summary.md) | 各模块框架状态与核心学习点汇总 | 总结 |
 
 ## 存储层在整体架构中的位置
 

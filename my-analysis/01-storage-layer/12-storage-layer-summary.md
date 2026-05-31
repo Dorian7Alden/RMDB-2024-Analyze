@@ -1,6 +1,6 @@
-# 11. 存储层总结
+# 12. 存储层总结
 
-存储层 10 个小节覆盖了数据如何从磁盘到内存的完整链路：
+存储层 11 个小节覆盖了数据如何从磁盘到内存的完整链路：
 
 ```
 Disk Manager → Page → Buffer Pool → Replacer → Page Guard → RWLatch

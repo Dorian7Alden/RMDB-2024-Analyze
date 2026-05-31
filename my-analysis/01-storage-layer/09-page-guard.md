@@ -1,4 +1,4 @@
-# 08. Page Guard（RAII 页面守卫）
+# 09. Page Guard RAII 页面守卫
 
 ## 问题
 
@@ -13,7 +13,7 @@ buffer_pool_manager->unpin_page(page_id, false);  // 可能走不到这行
 
 ## RAII 解决方案
 
-**RAII（Resource Acquisition Is Initialization，资源获取即初始化）**是 C++ 的核心惯用法：在构造函数中获取资源，在析构函数中释放资源。Page Guard 正是把这个模式应用到页面管理上。
+**RAII（Resource Acquisition Is Initialization，资源获取即初始化）** 是 C++ 的核心惯用法：在构造函数中获取资源，在析构函数中释放资源。Page Guard 正是把这个模式应用到页面管理上。
 
 ### 调用方对比
 
@@ -160,4 +160,4 @@ char* data = write_guard.GetDataMut();   // 自动标记脏页
 - 使用移动语义保证页面所有权唯一，禁止拷贝
 - 框架中没有这个模块，参考实现是**从零开始**实现的
 
-下一节：[09. RWLatch 读写锁](./09-rwlatch.md)
+下一节：[10. RWLatch 读写锁](./10-rwlatch.md)

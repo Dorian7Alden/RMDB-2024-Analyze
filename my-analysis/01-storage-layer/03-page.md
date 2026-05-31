@@ -109,4 +109,4 @@ pin_count_ > 0  →  被引用中，不能被淘汰
 - `pin_count_` 控制页面的生命周期：>0 受保护，=0 可淘汰
 - 框架版 Page 缺少 RWLatch 和 `get_pin_count()`，参考实现补全了并发控制能力
 
-下一节：[04. 缓冲池概述](./04-buffer-pool-overview.md)
+下一节：[04a. 缓冲池概述](./04a-buffer-pool-overview.md)

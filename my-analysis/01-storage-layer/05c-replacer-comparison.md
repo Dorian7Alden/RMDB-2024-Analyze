@@ -1,4 +1,4 @@
-# 07c. LRU 与 Clock 对比分析
+# 05c. LRU 与 Clock 对比分析
 
 ## 对比表
 
@@ -46,4 +46,4 @@
 - Clock 轻量但近似，适合分区小池子、高频调用的场景
 - 参考实现选 Clock 是因为多实例分区架构恰好规避了 Clock 的 O(N) 缺点的同时放大了其轻量优势
 
-下一节：[08. Page Guard RAII 机制](./08-page-guard.md)
+下一节：[06. Page Guard RAII 机制](./06-page-guard.md)

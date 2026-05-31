@@ -1,8 +1,8 @@
-# 05a. 锁的基本认识
+# 04d. 锁的基本认识
 
 ## 问题起源
 
-在 [05. 单实例缓冲池](./05-buffer-pool-single.md) 中，`fetch_page` 等方法开头都有这样一行：
+在 [04b. 单实例缓冲池](./04b-buffer-pool-single.md) 中，`fetch_page` 等方法开头都有这样一行：
 
 ```cpp
 std::scoped_lock lock{latch_};

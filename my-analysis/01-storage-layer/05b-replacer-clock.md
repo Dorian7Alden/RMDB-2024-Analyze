@@ -1,13 +1,13 @@
-# 07b. Clock 时钟替换算法
+# 05b. Clock 时钟替换算法
 
 ## 问题：LRU 的不足
 
-[07a. LRU](./07a-lru-replacer.md) 中的 `LRUReplacer` 用双向链表 + 哈希表精确维护访问顺序，但它有两个代价：
+[05a. LRU](./05a-replacer-lru.md) 中的 `LRUReplacer` 用双向链表 + 哈希表精确维护访问顺序，但它有两个代价：
 
 - **每次 pin/unpin 都操作链表**：erase、push_front 涉及指针修改和可能的动态内存分配
 - **每个链表节点有额外内存开销**：双向链表的每个节点需要两个指针（prev/next）
 
-参考实现把一个大缓冲池拆成了 16 个 Instance（[06. 多实例缓冲池](./06-buffer-pool-multi.md)），每个只有 4096 个 frame。在这个规模下，不需要 LRU 那么精确——用一个更轻量的近似算法就够了。这就是 **Clock 时钟算法**。
+参考实现把一个大缓冲池拆成了 16 个 Instance（[04c. 多实例缓冲池](./04c-buffer-pool-multi.md)），每个只有 4096 个 frame。在这个规模下，不需要 LRU 那么精确——用一个更轻量的近似算法就够了。这就是 **Clock 时钟算法**。
 
 ## 数据结构
 
@@ -231,6 +231,6 @@ pointer=0: pin_counter=0, pin=false → 淘汰 frame 0！
 - 被访问过的 frame 获得一次豁免：引用位为 true 时不淘汰，清零后多活一轮
 - 比 LRU 更轻量：纯数组操作，零动态分配，适合分区小池子
 
-LRU 与 Clock 的详细对比分析见：[07c. LRU 与 Clock 对比分析](./07c-replacer-comparison.md)
+LRU 与 Clock 的详细对比分析见：[05c. LRU 与 Clock 对比分析](./05c-replacer-comparison.md)
 
-下一节：[08. Page Guard RAII 机制](./08-page-guard.md)
+下一节：[06. Page Guard RAII 机制](./06-page-guard.md)

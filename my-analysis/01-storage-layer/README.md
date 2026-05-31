@@ -20,16 +20,17 @@
 | 01 | [磁盘管理器](./01-disk-manager.md) | 磁盘文件的读写、分配、管理 | 了解 |
 | 02 | [文件头](./02-file-header.md) | RmFileHdr、IxFileHdr、磁盘布局、读写路径 | 了解 |
 | 03 | [页面数据结构](./03-page.md) | PageId、Page 的结构与内存布局 | 掌握 |
-| 04 | [缓冲池概述](./04-buffer-pool-overview.md) | 为什么要缓冲池、核心概念（pin/unpin/脏页） | 理解 |
-| 05 | [单实例缓冲池](./05-buffer-pool-single.md) | 框架给的基础版本：page_table、free_list、LRU | 掌握 |
-| 06 | [多实例缓冲池](./06-buffer-pool-multi.md) | 分区并发优化：BufferPoolInstance | **核心** |
-| 07a | [LRU 页面替换](./07a-lru-replacer.md) | LRUReplacer：双向链表 + 哈希表精确 LRU | **核心** |
-| 07b | [Clock 时钟替换](./07b-clock-replacer.md) | ClockReplacer：定长数组近似 LRU 二次机会 | **核心** |
-| 07c | [替换策略对比](./07c-replacer-comparison.md) | LRU 与 Clock 优缺与潜在问题对比分析 | 理解 |
-| 08 | [Page Guard](./08-page-guard.md) | RAII 页面守卫：自动 unpin | **核心** |
-| 09 | [RWLatch 读写锁](./09-rwlatch.md) | 页面级读写锁 | **核心** |
-| 10 | [存储层实例串讲](./10-storage-structure-example.md) | 用具体实例串联所有组件，建立整体认知 | 综合 |
-| 11 | [存储层总结](./11-storage-layer-summary.md) | 各模块框架状态与核心学习点汇总 | 总结 |
+| 04a | [缓冲池概述](./04a-buffer-pool-overview.md) | 为什么要缓冲池、核心概念（pin/unpin/脏页） | 理解 |
+| 04b | [单实例缓冲池](./04b-buffer-pool-single.md) | 框架给的基础版本：page_table、free_list、LRU | 掌握 |
+| 04c | [多实例缓冲池](./04c-buffer-pool-multi.md) | 分区并发优化：BufferPoolInstance | **核心** |
+| 04d | [锁的基本认识](./04d-buffer-pool-lock-basics.md) | latch_ 与 scoped_lock 及读写锁基础 | 补充 |
+| 05a | [LRU 页面替换](./05a-replacer-lru.md) | LRUReplacer：双向链表 + 哈希表精确 LRU | **核心** |
+| 05b | [Clock 时钟替换](./05b-replacer-clock.md) | ClockReplacer：定长数组近似 LRU 二次机会 | **核心** |
+| 05c | [替换策略对比](./05c-replacer-comparison.md) | LRU 与 Clock 优缺与潜在问题对比分析 | 理解 |
+| 06 | [Page Guard](./06-page-guard.md) | RAII 页面守卫：自动 unpin | **核心** |
+| 07 | [RWLatch 读写锁](./07-rwlatch.md) | 页面级读写锁 | **核心** |
+| 08 | [存储层实例串讲](./08-storage-structure-example.md) | 用具体实例串联所有组件，建立整体认知 | 综合 |
+| 09 | [存储层总结](./09-storage-layer-summary.md) | 各模块框架状态与核心学习点汇总 | 总结 |
 
 ## 存储层在整体架构中的位置
 

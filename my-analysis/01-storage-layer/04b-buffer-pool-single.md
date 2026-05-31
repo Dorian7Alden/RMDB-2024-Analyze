@@ -1,4 +1,4 @@
-# 05. 单实例缓冲池（框架版本）
+# 04b. 单实例缓冲池（框架版本）
 
 ## 概述
 
@@ -159,7 +159,7 @@ Page* BufferPoolManager::fetch_page(PageId page_id) {
 
 > **`latch_` 与 `lock` 是什么？**
 >
-> `latch_` 是 `std::mutex` 互斥锁（`buffer_pool_manager.h:34`），`std::scoped_lock lock{latch_}` 是 RAII 包装器——构造时自动加锁，函数结束时自动解锁。更多细节（子函数为何不加锁、花括号语法、读写锁等）见：[05a. 锁的基本认识](./05a-lock-basics.md)。
+> `latch_` 是 `std::mutex` 互斥锁（`buffer_pool_manager.h:34`），`std::scoped_lock lock{latch_}` 是 RAII 包装器——构造时自动加锁，函数结束时自动解锁。更多细节（子函数为何不加锁、花括号语法、读写锁等）见：[04d. 锁的基本认识](./04d-buffer-pool-lock-basics.md)。
 
 **实例**：扫描 student 表，fetch_page({fd:3, page_no:0})：
 
@@ -226,4 +226,4 @@ bool BufferPoolManager::unpin_page(PageId page_id, bool is_dirty) {
 - `fetch_page` 的流程：查 page_table_ → 命中返回 / 未命中 → 找 victim → update_page → 读磁盘
 - 全局 `std::mutex` 导致所有操作串行化，性能差
 
-下一节：[06. 多实例缓冲池](./06-buffer-pool-multi.md)
+下一节：[04c. 多实例缓冲池](./04c-buffer-pool-multi.md)

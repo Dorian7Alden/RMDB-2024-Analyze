@@ -70,8 +70,8 @@ b7  b6  b5  b4  b3  b2  b1  b0
  1   0   0   1   0   0   0   0   = 0x90
  ↑   ↑   ↑   ↑   ↑   ↑   ↑   ↑
 s0  s1  s2  s3  s4  s5  s6  s7
-占              占
-用              用
+占           占
+用           用
 ```
 
 `s0=1, s3=1`，其余为 0。高位 b7 对应 slot 0，低位 b0 对应 slot 7。
@@ -83,21 +83,90 @@ num_records_per_page = (BITMAP_WIDTH × (PAGE_SIZE - 1 - sizeof(RmFileHdr)) + 1)
                      / (1 + record_size × BITMAP_WIDTH)
 ```
 
-其中 `BITMAP_WIDTH = 8`（每字节 8 位）。代入 student 表的数据：
+这个公式一步到位，不好理解。下面用 student 表（`record_size = 32`）逐步推导。
 
-- `PAGE_SIZE = 4096`
-- `sizeof(RmPageHdr) = 8`
-- `OFFSET_PAGE_HDR` 是 page 通用头部大小，对于数据页来说是固定的
+### 推导公式
 
-这个公式本质是在解：**总空间 = header + bitmap + slots**，其中 bitmap 大小取决于槽位数，slots 大小也取决于槽位数。
+**第 1 步：写出空间约束方程**
+
+一页中可用于记录层的空间是"Page 总大小 − 通用头"：
 
 ```
-PAGE_SIZE = OFFSET_PAGE_HDR + sizeof(RmPageHdr) + bitmap_size + num_records_per_page × record_size
-
-其中 bitmap_size = ceil(num_records_per_page / 8)
+可用空间 = PAGE_SIZE - OFFSET_PAGE_HDR
+         = 4096 - 4 = 4092 字节
 ```
 
-把 bitmap_size 代入，解出 `num_records_per_page` 的最大整数值。
+这 4092 字节要装三样东西：`RmPageHdr` + `bitmap` + `slots`。设槽位数为 `n`：
+
+```
+sizeof(RmPageHdr) + bitmap_size + n × record_size ≤ 4092
+                  8 + bitmap_size + n × 32        ≤ 4092
+                        bitmap_size + n × 32      ≤ 4084   ... ①
+```
+
+**第 2 步：把 bitmap_size 用 n 表示**
+
+`bitmap_size = ceil(n / 8)`，向上取整不好直接算，先把它近似为 `n / 8`：
+
+```
+bitmap_size ≈ n / 8
+```
+
+代入 ①：
+
+```
+n/8 + n × 32 ≤ 4084
+```
+
+**第 3 步：提取公因式 n**
+
+```
+n × (1/8 + 32) ≤ 4084
+n × (1/8 + 256/8) ≤ 4084
+n × 257/8 ≤ 4084
+```
+
+**第 4 步：解出 n**
+
+```
+n ≤ 4084 × 8 / 257
+n ≤ 32672 / 257
+n ≤ 127.12...
+```
+
+向下取整：**`n = 127`**。即每页最多存 127 条记录。
+
+**第 5 步：验证**
+
+```
+bitmap_size = ceil(127 / 8) = ceil(15.875) = 16 字节
+slots = 127 × 32 = 4064 字节
+总计 = 8 + 16 + 4064 = 4088 ≤ 4092 ✓
+```
+
+如果 n = 128：
+```
+bitmap_size = ceil(128 / 8) = 16 字节
+slots = 128 × 32 = 4096 字节
+总计 = 8 + 16 + 4096 = 4120 > 4092 ✗  放不下！
+```
+
+### 通用公式与推导的对应关系
+
+上面逐步推导的结果等价于代码中的公式。把推导过程整理成通用形式：
+
+```
+推导:  n = 4084 × BITMAP_WIDTH / (1 + record_size × BITMAP_WIDTH)
+代码:  n = (BITMAP_WIDTH × (PAGE_SIZE - 1 - sizeof(RmFileHdr)) + 1)
+         / (1 + record_size × BITMAP_WIDTH)
+```
+
+其中：
+- `PAGE_SIZE - 1 - sizeof(RmFileHdr)` ≈ 可用空间（`sizeof(RmFileHdr)` 约等于 `OFFSET_PAGE_HDR + sizeof(RmPageHdr)`，代码中用它近似表示页面总开销）
+- `+ 1` 是整数除法向上取整的修正项（保证 `ceil` 效果）
+- `BITMAP_WIDTH = 8`
+
+**实际计算结果**：student 表 `record_size = 28`（4+20+4），代入公式得到 `num_records_per_page ≈ 140`。
 
 ### 第二步：算 bitmap 大小
 

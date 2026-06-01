@@ -208,6 +208,50 @@ RmPageHandle(const RmFileHdr* fhdr_, Page* page_)
 }
 ```
 
+### `page` 指向的是什么？
+
+`page_` 是**当前操作的那一页**，不是"所有页的数组"。一张表的数据文件有很多页（第 1 页、第 2 页……），每次 `fetch_page_handle(page_no)` 只从缓冲池取出**一个** Page 对象，包装成 RmPageHandle 返回。
+
+例如要读取第 3 页的记录：
+
+```
+RmPageHandle ph = file_handle->fetch_page_handle(3);
+// ph.page  → 指向缓冲池中 {fd:3, page_no:3} 这一个 Page 对象
+// ph.slots → 指向这一页的记录数据区
+```
+
+用完这一页后 `unpin_page`，再取下一页时又会生成新的 RmPageHandle 指向另一个 Page。
+
+### `reinterpret_cast` 是什么？
+
+`Page` 底层是一块原始字节数组 `char data_[4096]`。现在我们知道前 4 字节是 LSN，接下来 8 字节是 `RmPageHdr` 结构体——但编译器不知道，它只看到 `char*`。
+
+`reinterpret_cast<RmPageHdr*>(地址)` 的意思是：**"把这块内存地址强行解释为 RmPageHdr 类型的指针"**。这样后续就可以通过 `page_hdr->num_records` 直接读写页头字段，而不需要手动逐字节解析。
+
+打个比方：一块内存就像一张白纸，`reinterpret_cast` 告诉编译器"请按 RmPageHdr 的格式来读这张纸"，编译器就知道哪个偏移是 `num_records`、哪个偏移是 `next_free_page_no`。
+
+```mermaid
+flowchart LR
+    subgraph raw["Page data_ 原始字节"]
+        direction LR
+        B0["0x00"]
+        B1["0x01"]
+        B2["0x02"]
+        B3["0x03"]
+        B4["0x04"]
+        B5["0x05"]
+        BN["..."]
+    end
+
+    subgraph hdr["reinterpret_cast 后"]
+        direction LR
+        H1["RmPageHdr<br/>next_free_page_no int<br/>4 字节 偏移 4-7"]
+        H0["RmPageHdr<br/>num_records int<br/>4 字节 偏移 8-11"]
+    end
+
+    raw -->|"reinterpret_cast 重新解释"| hdr
+```
+
 三个指针的偏移关系一目了然：
 
 ```mermaid

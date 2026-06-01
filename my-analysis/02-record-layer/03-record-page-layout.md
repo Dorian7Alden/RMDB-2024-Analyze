@@ -7,7 +7,7 @@
 从第 1 章我们知道，每个 `Page` 对象底层是一个 4096 字节的数组（`PAGE_SIZE`）。记录层在这个数组上定义了自己的格式：
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph page["Page data 4096 字节"]
         style page fill:#f3f4f6,stroke:#6b7280,color:#374151
         direction LR

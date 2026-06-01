@@ -93,6 +93,15 @@ src/
 - 编译器：GCC 7.1+
 - 依赖：flex, bison, readline
 
+## 项目规则（.claude/rules/，按需读取）
+
+详细规则已从 memory 迁移到 `.claude/rules/`，按场景选择性加载，避免每次会话占用上下文：
+
+- **编写或修改 my-analysis/ 文档前** → 读取 `.claude/rules/writing.md`（28 条写作规范）
+- **涉及 mermaid 图表时** → 读取 `.claude/rules/mermaid.md`（6 条画图规则）
+- **提交 git 前** → 读取 `.claude/rules/git.md`（提交格式与单一原则）
+- **讲解框架对比、概念讲解时** → 读取 `.claude/rules/teaching.md`（教学方法论）
+
 ## 参考资源
 
 - [Database System Concepts (7th Edition)](https://db-book.com/)

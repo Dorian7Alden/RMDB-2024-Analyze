@@ -72,6 +72,6 @@ flowchart LR
 | 对下 | BufferPoolManager | `fetch_page` / `new_page` / `unpin_page` | `PageId` → `Page*` |
 | 对下 | DiskManager | `read_page` / `write_page` | fd + page_no + data |
 
-上一节：[09. 框架对比分析](./09-record-frame-vs-reference.md)
+上一节：[09-record-frame-vs-reference.md](./09-record-frame-vs-reference.md)
 
 下一章：[第 3 章：索引层](../03-index-layer/README.md)（待编写）

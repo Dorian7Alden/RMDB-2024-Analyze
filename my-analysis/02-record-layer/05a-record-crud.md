@@ -239,4 +239,4 @@ void RmFileHandle::update_record(const Rid& rid, char* buf,
 | update_record | `src/record/rm_file_handle.cpp` | 164-179 |
 | fetch_page_handle | `src/record/rm_file_handle.cpp` | 189-202 |
 
-上一节：[04. Bitmap 位图](./04-record-bitmap.md) | 下一节：[05b. 空闲页链表管理](./05b-record-free-list.md)
+上一节：[04-record-bitmap.md](./04-record-bitmap.md) | 下一节：[05b-record-free-list.md](./05b-record-free-list.md)

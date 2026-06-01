@@ -362,4 +362,4 @@ inline char* get_slot(int slot_no) const {
 | num_records_per_page 计算 | `src/record/rm_manager.h` | 48-50 |
 | bitmap_size 计算 | `src/record/rm_manager.h` | 51-52 |
 
-上一节：[02. 数据结构](./02-record-data-structures.md) | 下一节：[04. Bitmap 位图](./04-record-bitmap.md)
+上一节：[02-record-data-structures.md](./02-record-data-structures.md) | 下一节：[04-record-bitmap.md](./04-record-bitmap.md)

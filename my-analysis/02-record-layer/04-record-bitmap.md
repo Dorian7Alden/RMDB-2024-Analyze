@@ -137,4 +137,4 @@ rid_.slot_no = Bitmap::next_bit(true, cur_page_handle_.bitmap,
 | set / reset / is_set | `src/record/bitmap.h` | 25-35 |
 | next_bit / first_bit | `src/record/bitmap.h` | 45-57 |
 
-上一节：[03. 数据页内部布局](./03-record-page-layout.md) | 下一节：[05a. 记录增删改查](./05a-record-crud.md)
+上一节：[03-record-page-layout.md](./03-record-page-layout.md) | 下一节：[05a-record-crud.md](./05a-record-crud.md)

@@ -160,4 +160,4 @@ flowchart TD
 | destroy_file | `src/record/rm_manager.h` | 65-67 |
 | flush_file | `src/record/rm_manager.h` | 100-106 |
 
-上一节：[05b. 空闲页链表管理](./05b-record-free-list.md) | 下一节：[07. 记录扫描](./07-record-scan.md)
+上一节：[05b-record-free-list.md](./05b-record-free-list.md) | 下一节：[07-record-scan.md](./07-record-scan.md)

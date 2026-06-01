@@ -222,6 +222,55 @@ RmPageHandle ph = file_handle->fetch_page_handle(3);
 
 用完这一页后 `unpin_page`，再取下一页时又会生成新的 RmPageHandle 指向另一个 Page。
 
+### `page->get_data()` 返回什么？
+
+`get_data()` 返回 `Page` 对象内部的 `data_[PAGE_SIZE]` 数组的首地址（`page.h:81`），即这一页数据在内存中的起始位置。所有偏移计算都是从这个首地址开始的。
+
+### 构造函数是怎么计算三个指针的？
+
+以一个具体数值来追踪——假设内存地址从 `0x1000` 开始：
+
+```
+page->get_data()                          → 0x1000  （data_ 数组首地址）
+page->OFFSET_PAGE_HDR = 4                 → LSN 占 4 字节
+sizeof(RmPageHdr)    = 8                  → RmPageHdr 占 8 字节
+file_hdr->bitmap_size                     → 从文件头获取
+```
+
+```
+page_hdr = reinterpret_cast<RmPageHdr*>(
+    page->get_data() + page->OFFSET_PAGE_HDR
+);
+// = reinterpret_cast<RmPageHdr*>(0x1000 + 4)
+// = reinterpret_cast<RmPageHdr*>(0x1004)
+// 含义：跳过 LSN（4字节），0x1004 处存的就是 RmPageHdr
+```
+
+```
+bitmap = page->get_data() + sizeof(RmPageHdr) + page->OFFSET_PAGE_HDR;
+//      = 0x1000 + 8 + 4
+//      = 0x100C
+// 含义：跳过 LSN（4字节）再跳过 RmPageHdr（8字节）= 偏移 12 字节
+```
+
+```
+slots = bitmap + file_hdr->bitmap_size;
+// 含义：bitmap 之后再跳过 bitmap_size 字节，就是记录数据区
+```
+
+### 为什么 bitmap 不从 page_hdr 推算？
+
+你观察得很对——bitmap 紧跟在 RmPageHdr 之后，写成这样会更直观：
+
+```cpp
+bitmap = reinterpret_cast<char*>(page_hdr) + sizeof(RmPageHdr);
+//       把 page_hdr 转回 char*   再跳过 8 字节 = bitmap 起始
+```
+
+源码没有这样做，而是每次都从 `get_data()` 加固定偏移。两种写法结果一样，但 `page_hdr + sizeof(RmPageHdr)` 更好读——它反映了物理上"bitmap 紧跟在 RmPageHdr 之后"的事实。
+
+另外源码中 `sizeof(RmPageHdr) + page->OFFSET_PAGE_HDR` 的加法顺序与物理布局不一致（源码先加了 8 再加 4），但加法满足交换律，结果不受影响。如果写成 `OFFSET_PAGE_HDR + sizeof(RmPageHdr)`（先 LSN 再 RmPageHdr），阅读时从左到右就对应了页面上从上到下的布局顺序，更容易理解。
+
 ### `reinterpret_cast` 是什么？
 
 `Page` 底层是一块原始字节数组 `char data_[4096]`。现在我们知道前 4 字节是 LSN，接下来 8 字节是 `RmPageHdr` 结构体——但编译器不知道，它只看到 `char*`。
@@ -231,9 +280,9 @@ RmPageHandle ph = file_handle->fetch_page_handle(3);
 打个比方：一块内存就像一张白纸，`reinterpret_cast` 告诉编译器"请按 RmPageHdr 的格式来读这张纸"，编译器就知道哪个偏移是 `num_records`、哪个偏移是 `next_free_page_no`。
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph raw["Page data_ 原始字节"]
-        direction LR
+        direction TB
         B0["0x00"]
         B1["0x01"]
         B2["0x02"]
@@ -244,7 +293,7 @@ flowchart LR
     end
 
     subgraph hdr["reinterpret_cast 后"]
-        direction LR
+        direction TB
         H1["RmPageHdr<br/>next_free_page_no int<br/>4 字节 偏移 4-7"]
         H0["RmPageHdr<br/>num_records int<br/>4 字节 偏移 8-11"]
     end

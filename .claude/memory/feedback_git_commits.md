@@ -16,8 +16,6 @@ action(keyword): short description
 - detail-2
 - ...
 - detail-n
-
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>
 ```
 
 示例：

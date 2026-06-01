@@ -11,18 +11,18 @@ flowchart LR
     subgraph page["Page data 4096 字节"]
         style page fill:#f3f4f6,stroke:#6b7280,color:#374151
         direction LR
-        A["Page<br/>通用头部<br/>LSN"]
-        B["RmPageHdr<br/>页头<br/>8 字节"]
-        C["Bitmap<br/>位图<br/>bitmap_size 字节"]
-        D["Slot 0<br/>记录槽 0"]
-        E["Slot 1<br/>记录槽 1"]
+        A["LSN<br/>Page通用头部"]
+        B["RmPageHdr页头<br/>8 字节"]
+        C["Bitmap位图<br/>bitmap_size 字节"]
+        D["Slot 0"]
+        E["Slot 1"]
         F["..."]
-        G["Slot N-1<br/>记录槽 N-1"]
+        G["Slot N-1"]
     end
 
     subgraph note1["便利贴 通用头"]
         style note1 fill:#fff9c4,stroke:#f9a825,stroke-dasharray:4
-        N1["每个 Page 开头有一个<br/>数据库通用的页头<br/>存储 LSN 等通用信息<br/>大小 OFFSET_PAGE_HDR 字节"]
+        N1["每个 Page 开头有一个<br/>数据库通用的页头<br/>存储 LSN 等通用信息<br/>共OFFSET_PAGE_HDR字节"]
     end
 
     subgraph note2["便利贴 记录层特有"]
@@ -48,7 +48,33 @@ flowchart LR
 
 ### 第一步：算每页能放几条记录
 
-关键在于"**bitmap 的每一位对应一个槽位**"。bitmap 是用 `char` 数组实现的，每字节（8 位）对应 8 个槽。
+关键在于"**bitmap 的每一位对应一个槽位**"。bitmap 是用 `char[]` 数组实现的，每字节（8 位）对应 8 个槽。
+
+举个例子：假设 `num_records_per_page = 10`，需要 `ceil(10/8) = 2` 字节的 bitmap。两个字节共 16 位，只用前 10 位标记 slot 0~9，后 6 位闲置：
+
+```
+bitmap 第 0 字节           bitmap 第 1 字节
+┌─────────────────┐       ┌─────────────────┐
+│ b7 b6 b5 b4 b3 b2 b1 b0 │ │ b7 b6 b5 b4 b3 b2 b1 b0 │
+│ │  │  │  │  │  │  │  │  │ │  │  │  │  │  │  │  │  │
+│ ↓  ↓  ↓  ↓  ↓  ↓  ↓  ↓  │ ↓  ↓  ↓  ↓  ↓  ↓  ↓  ↓  │
+│s0 s1 s2 s3 s4 s5 s6 s7│ │s8 s9  -  -  -  -  -  - │
+└─────────────────┘       └─────────────────┘
+                                           ↑ 闲置位（始终为 0）
+```
+
+如果插入了 slot 0 和 slot 3，bitmap 第 0 字节变为：
+
+```
+b7  b6  b5  b4  b3  b2  b1  b0
+ 0   0   0   0   1   0   0   1   = 0x09
+ ↑   ↑   ↑   ↑   ↑   ↑   ↑   ↑
+s7  s6  s5  s4  s3  s2  s1  s0
+                        占   占
+                        用   用
+```
+
+`s0=1, s3=1`，其余为 0。高位在左边，slot 号从小到大对应从 LSB（最低位）到 MSB（最高位）。
 
 计算公式来自 `RmManager::create_file()`（`src/record/rm_manager.h:48`）：
 

@@ -125,3 +125,5 @@ flowchart LR
 | `src/record/rm_scan.cpp` | RmScan 实现 |
 | `src/record/bitmap.h` | Bitmap 位图工具类 |
 | `src/defs.h` | Rid、ColType 等公共类型 |
+
+下一节：[02. 数据结构](./02-record-data-structures.md)

@@ -305,3 +305,5 @@ void RmFileHandle::remove_page_from_free_list(RmPageHandle &page_handle) {
 | create_new_page_handle | `src/record/rm_file_handle.cpp` | 208-227 |
 | release_page_handle | `src/record/rm_file_handle.cpp` | 254-261 |
 | remove_page_from_free_list（框架特有） | `db2026-x/src/record/rm_file_handle.cpp` | 220-249 |
+
+上一节：[05a. 记录增删改查](./05a-record-crud.md) | 下一节：[06. 记录管理器](./06-record-manager.md)

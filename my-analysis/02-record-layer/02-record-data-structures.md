@@ -157,3 +157,5 @@ flowchart TD
 | `RmPageHdr` | `src/record/rm_defs.h` | 34-37 |
 | `RmFileHdr` | `src/record/rm_defs.h` | 24-31 |
 | 常量（RM_NO_PAGE 等） | `src/record/rm_defs.h` | 18-21 |
+
+上一节：[01. 记录层概述](./01-record-layer-overview.md) | 下一节：[03. 数据页内部布局](./03-record-page-layout.md)

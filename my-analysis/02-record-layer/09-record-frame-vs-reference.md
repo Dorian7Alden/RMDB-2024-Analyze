@@ -172,3 +172,5 @@ if (++page_handle.page_hdr->num_records == file_hdr_.num_records_per_page) {
 | get_record 位图检查 | `db2026-x/src/record/rm_file_handle.cpp:19` | `src/record/rm_file_handle.cpp:19` |
 | remove_page_from_free_list | `db2026-x/src/record/rm_file_handle.cpp:220` | 无 |
 | RmScan.next | `db2026-x/src/record/rm_scan.cpp:30` | `src/record/rm_scan.cpp:35` |
+
+上一节：[08. 记录层实例串讲](./08-record-structure-example.md) | 下一节：[10. 记录层总结](./10-record-layer-summary.md)

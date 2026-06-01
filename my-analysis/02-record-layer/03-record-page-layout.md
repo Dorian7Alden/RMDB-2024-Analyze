@@ -222,9 +222,9 @@ RmPageHandle ph = file_handle->fetch_page_handle(3);
 打比方：一块内存像一张白纸，`reinterpret_cast` 告诉编译器"请按 RmPageHdr 的格式来读"，编译器就知道哪个偏移是 `num_records`、哪个是 `next_free_page_no`。
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph raw["Page data_ 原始字节"]
-        direction LR
+        direction TB
         B0["0x00"]
         B1["0x01"]
         B2["0x02"]
@@ -235,7 +235,7 @@ flowchart LR
     end
 
     subgraph hdr["reinterpret_cast 后"]
-        direction LR
+        direction TB
         H0["num_records int<br/>4 字节 偏移 4-7"]
         H1["next_free_page_no int<br/>4 字节 偏移 8-11"]
     end
@@ -324,6 +324,8 @@ bitmap = reinterpret_cast<char*>(page_hdr) + sizeof(RmPageHdr);
 
 源码没有这样做，而是每次都从 `get_data()` 加固定偏移。两种写法结果一样，但从 `page_hdr` 推算更能反映物理上"bitmap 紧跟在 RmPageHdr 之后"的事实。
 
+> 我觉得就是 bullshit ，明明直接计算偏移量更符合直觉，相对位置更清晰，这么写完全就是反人类。AI 别强行解释啊喂！
+
 ## get_slot：定位具体记录
 
 `src/record/rm_file_handle.h:46`
@@ -359,3 +361,5 @@ inline char* get_slot(int slot_no) const {
 | get_slot | `src/record/rm_file_handle.h` | 46-50 |
 | num_records_per_page 计算 | `src/record/rm_manager.h` | 48-50 |
 | bitmap_size 计算 | `src/record/rm_manager.h` | 51-52 |
+
+上一节：[02. 数据结构](./02-record-data-structures.md) | 下一节：[04. Bitmap 位图](./04-record-bitmap.md)

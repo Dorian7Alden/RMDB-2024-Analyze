@@ -1,28 +1,15 @@
+# 项目记忆（每次会话自动加载）
+
+## 身份与项目
+
 - [用户角色与目标](user_role.md) — 用户是 DBMS 初学者，通过 RMDB 项目学习设计与开发，我是指导老师
-- [项目模块结构](project_overview.md) — RMDB 各模块概览（storage, record, index, system, transaction, execution 等）
-- [教程写作规范](feedback_writing_style.md) — 小章节、先概念后实现、零基础友好、源码对应等写作要求
-- [Git 提交规则](feedback_git_commits.md) — 每次修改文档后自动 git commit，不同内容分开提交，单一原则
-- [自动识别规则并持久化](feedback_auto_persist_rules.md) — 用户每次给出的调整要求应自动识别为规则，写入 CLAUDE.md 和 memory
-- [学习目标方法论](learning_approach.md) — 以框架 db2026-x 的空实现为学习目标，对比 src 参考实现来讲解
-- [前置知识按需补充](feedback_prerequisite_scope.md) — 每个文档的前置理论知识只放正文涉及的内容，不放无关知识
-- [答疑紧接正文](feedback_qa_placement.md) — 提问答疑应紧接在对应内容的讲解下方，不放文档末尾
-- [文档单一职责](feedback_single_responsibility.md) — 每个文档只包含当前主要内容，无关内容单独写文档
-- [上下文串联](feedback_context_linking.md) — 正文讲完后简要串联相关模块，保持联系但不喧宾夺主
-- [框架对比要分析原因](feedback_framework_comparison_analysis.md) — 对比差异要讲清楚为什么，不止列变化清单
-- [Mermaid 画图灵活](feedback_mermaid_flexible.md) — 不局限于标准形式，颜色备注图例分离，看得懂即可
-- [理论后回归源码](feedback_theory_then_source.md) — 讲完理论必须引用源码，最终目标是看懂源码手写源码
-- [子图嵌套表示从属关系](feedback_mermaid_subgraph.md) — 对象间包含/层级关系用 mermaid subgraph 嵌套呈现
-- [便利贴式备注块](feedback_mermaid_sticky_notes.md) — 用特殊样式节点加箭头指向目标元素，充当便利贴备注
-- [补充说明放正文后面](feedback_supplement_placement.md) — 补充说明、答疑放正文后，前置知识才放正文前
-- [追问多的概念单独成文](feedback_extract_sidebar_doc.md) — 连续追问的概念应提取为独立文档，避免补充内容盖过正文
-- [维护文档聚焦最近查看](feedback_maintain_focused.md) — 维护文档时聚焦用户最近查看的文档，不全量扫描
-- [文件名与内容要匹配](feedback_filename_content_match.md) — 维护时检查文件名是否反映文档实际范围，不匹配一并调整
-- [验证理解再调整](feedback_verify_before_adjust.md) — 用户要求调整时先判断理解是否正确，防止盲从错误理解
-- [对比分析要讲优缺点](feedback_balanced_comparison.md) — 多种策略对比时要各自给出优点、缺点及潜在问题
-- [概念讲解先"是什么"后"为什么"](feedback_what_before_why.md) — 引入新概念必须先解释概念本身，再讲应用场景和原因
-- [规则优先于文档修改](feedback_rule_first.md) — 用户要求调整/记住规则时，先更新规则再改文档
-- [讲解概念先展示源码再解释](feedback_source_code_first.md) — 引入新概念必须先展示相关源码，再解释代码含义和概念
-- [保留生僻字拼音标注](feedback_preserve_pinyin.md) — 文档中的生僻字拼音是用户有意添加的，维护时不能删除
-- [mermaid 层级子图用不同颜色](feedback_mermaid_hierarchy_colors.md) — subgraph 嵌套表示层级时每层用不同颜色区分，层次越深颜色越突出
-- [表格优于 mermaid 的场景](feedback_table_vs_mermaid.md) — 对比矩阵/条件判断/多维度比较用表格更直观，不盲目用图
-- [每10轮主动检查并提交修改](feedback_git_auto_commit.md) — 间隔约10轮对话后主动检查 git 未提交修改并自动 commit
+- [项目模块结构](project_overview.md) — RMDB 各模块概览
+
+## 规则文件（按需读取）
+
+详细规则已迁移到 `.claude/rules/`，由 CLAUDE.md 按场景引用：
+
+- [教程写作规范](../rules/writing.md) — 28 条写作规则，编写或修改 my-analysis/ 文档前读取
+- [Mermaid 画图规则](../rules/mermaid.md) — 6 条画图规则，涉及 mermaid 图表时读取
+- [Git 提交规则](../rules/git.md) — 提交格式与单一原则，提交前读取
+- [教学方法论](../rules/teaching.md) — 框架对比、概念讲解顺序，讲解时读取

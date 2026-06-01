@@ -38,8 +38,5 @@ src/parser/lexer.cpp
 src/parser/parser.yy.h
 src/parser/parser.yy.cpp
 
-# personal 
+# personal
 TODO.md
-# Claude Code runtime files
-.claude/scheduled_tasks.lock
-.claude/settings.local.json

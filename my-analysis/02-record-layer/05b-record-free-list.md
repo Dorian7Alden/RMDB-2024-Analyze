@@ -154,6 +154,105 @@ flowchart TD
     G --> B
 ```
 
+## 具体追踪实例
+
+假设 `num_records_per_page = 3`（每页最多 3 条），从头追踪 `first` 和 `next` 的值变化。
+
+**初始状态**：文件刚创建，只有第 0 页（文件头）。
+```
+first_free_page_no = -1     （空链表）
+num_pages = 1               （只有文件头）
+```
+
+### 操作 1：INSERT 第 1 条记录
+
+```
+create_page_handle():
+  first_free = -1 → create_new_page_handle()
+  → 分配页面 1，page1.next_free = -1，first_free = 1
+insert_record():
+  page1.num_records: 0 → 1  （不满，链表不动）
+```
+```
+链表:  first_free=1  →  [page1 num=1 next=-1]  →  -1
+```
+
+### 操作 2：INSERT 第 2 条记录
+
+```
+create_page_handle():
+  first_free = 1 → 返回 page1
+insert_record():
+  page1.num_records: 1 → 2  （不满）
+```
+```
+链表:  first_free=1  →  [page1 num=2 next=-1]  →  -1
+```
+
+### 操作 3：INSERT 第 3 条记录
+
+```
+create_page_handle():
+  first_free = 1 → 返回 page1
+insert_record():
+  page1.num_records: 2 → 3 == num_records_per_page  → 满了！
+  first_free = page1.next_free = -1       ← page1 被移出链表
+```
+```
+链表:  first_free = -1   （空链表）
+```
+
+### 操作 4：INSERT 第 4 条记录
+
+```
+create_page_handle():
+  first_free = -1 → create_new_page_handle()
+  → 分配页面 2，page2.next_free = -1，first_free = 2
+insert_record():
+  page2.num_records: 0 → 1  （不满）
+```
+```
+链表:  first_free=2  →  [page2 num=1 next=-1]  →  -1
+```
+
+### 操作 5：DELETE page1 的第 1 条记录
+
+```
+delete_record(page1):
+  page1.num_records: 3 → 2  （之前是满的，3 == num_records_per_page）
+  → release_page_handle(page1):
+      page1.next_free = first_free = 2
+      first_free = 1                        ← page1 头插回链表
+```
+```
+链表:  first_free=1  →  [page1 num=2 next=2]  →  [page2 num=1 next=-1]  →  -1
+```
+
+### 操作 6：INSERT 第 5 条记录
+
+```
+create_page_handle():
+  first_free = 1 → 返回 page1
+insert_record():
+  page1.num_records: 2 → 3 == num_records_per_page  → 又满了！
+  first_free = page1.next_free = 2          ← page1 再次移出，链表头交给 page2
+```
+```
+链表:  first_free=2  →  [page2 num=1 next=-1]  →  -1
+```
+
+### 规律总结
+
+观察上面六步操作中 `first` 和 `next` 的变化：
+
+| 事件 | `first_free_page_no` 怎么变 | `next_free_page_no` 怎么变 |
+|------|---------------------------|--------------------------|
+| 新建页面 | 指向新页面 | 新页面的 next 设为 -1 |
+| 页面插满 | 改为当前页面的 next 值（链表头后移） | 不变（当前页的 next 保留，但它已不在链表中） |
+| 满页删除变不满 | 指向当前页面（头插） | 当前页的 next 设为旧的 first |
+
+核心规律：**first 永远指向链表头**，链表里的页面都还有空位。插满就摘头，删除变不满就头插回来。
+
 ## 框架与参考实现的差异
 
 框架在 `RmFileHandle` 中没有 `latch_`（`std::mutex`），并且新增了一个 `remove_page_from_free_list` 方法（`db2026-x/src/record/rm_file_handle.cpp:220`）：

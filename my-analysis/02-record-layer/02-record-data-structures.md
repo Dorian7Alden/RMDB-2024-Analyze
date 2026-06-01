@@ -101,11 +101,11 @@ struct RmPageHdr {
 
 ```cpp
 struct RmFileHdr {
-  int record_size;                    // 每条记录的大小（字节）
-  int num_pages;                      // 文件已分配的页面总数
-  int num_records_per_page;           // 每页最多能存几条记录
+  int record_size;                     // 每条记录的大小（字节）
+  int num_pages;                       // 文件已分配的页面总数
+  int num_records_per_page;            // 每页最多能存几条记录
   std::atomic<int> first_free_page_no; // 第一个有空闲空间的页面号
-  int bitmap_size;                    // 每页 bitmap 的字节数
+  int bitmap_size;                     // 每页 bitmap 的字节数
 };
 ```
 

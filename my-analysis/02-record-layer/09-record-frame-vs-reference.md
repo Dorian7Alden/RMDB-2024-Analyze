@@ -1,4 +1,4 @@
-# 08. 框架与参考实现对比
+# 09. 框架与参考实现对比
 
 记录层的框架（`db2026-x/`）和参考实现（`src/`）在整体结构上是一致的——数据结构定义、`RmPageHandle`、`RmManager`、`Bitmap` 都完全相同。差异集中在 `RmFileHandle` 的 CRUD 实现和 `RmScan` 的扫描策略上。
 

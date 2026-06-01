@@ -83,7 +83,9 @@ struct RmPageHdr {
 | `num_records` | 本页当前存了几条记录，插入 +1、删除 -1 |
 | `next_free_page_no` | 空闲页面链表的"next 指针"，指向下一个有空闲空间的页面 |
 
-`next_free_page_no` 和 `first_free_page_no` 配合使用，构成一个**单向链表**，串联所有还有空位的页面。这个链表的具体运作方式会在 [05b 空闲页链表管理](./05b-record-free-list.md) 详细讲解。
+`next_free_page_no` 和 `first_free_page_no` 配合使用，构成一个**单向链表**，串联所有还有空位的页面。
+
+> **`next_free_page_no` 指向的页面一定有空位吗？** 是的。链表里的页面只在"还有空位"时才留在链表中——一旦某个页面插满（`num_records == num_records_per_page`），它会被移出链表；当删除记录让满页重新出现空位时，它又被加回链表。所以链表中的每个页面**至少有一个空闲槽位**，"free" 名副其实。这个链表的具体运作方式会在 [05b 空闲页链表管理](./05b-record-free-list.md) 详细讲解。
 
 
 ## Rid：记录的唯一地址

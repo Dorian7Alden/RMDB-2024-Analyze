@@ -29,12 +29,62 @@ flowchart LR
 
     P1 --> page
     RID --> RC
+    SLOTS --- record
 ```
 
 **从上到下**：
 - 一个表对应一个文件，第 0 页是 `RmFileHdr`，第 1 页起是数据页
 - 每个数据页由 `RmPageHdr` + `Bitmap` + `Slots` 三段构成
 - 一条记录由 `Rid`（地址）+ `RmRecord`（内容）组成
+
+## RmFileHdr：文件级元信息
+
+`src/record/rm_defs.h:24`
+
+```cpp
+struct RmFileHdr {
+  int record_size;                    // 每条记录的大小（字节）
+  int num_pages;                      // 文件已分配的页面总数
+  int num_records_per_page;           // 每页最多能存几条记录
+  std::atomic<int> first_free_page_no; // 第一个有空闲空间的页面号
+  int bitmap_size;                    // 每页 bitmap 的字节数
+};
+```
+
+这个结构体存在每个表数据文件的**第 0 号页面**，记录了整张表的元信息。
+
+| 字段 | 作用 | 确定时机 |
+|------|------|----------|
+| `record_size` | 定长记录的大小，插入/查询时用来定位槽位 | 建表时确定，之后不变 |
+| `num_pages` | 当前文件有多少页，新增页面时递增 | 动态变化 |
+| `num_records_per_page` | 每页最多能放的记录数，由 PAGE_SIZE 和 record_size 算出 | 建表时计算 |
+| `first_free_page_no` | 指向有空闲空间的第一个页面号，-1 表示没有 | 动态变化 |
+| `bitmap_size` | 每页 bitmap 占多少字节，由 num_records_per_page 算出 | 建表时计算 |
+
+**设计要点**：每条记录定长，所以一页能放几条是固定的，不需要担心"剩下的空间够不够放"。
+
+> **第 0 页会被占满吗？** RmFileHdr 只有约 24 字节，但独占整个第 0 页（4096 字节），剩余约 4072 字节是空闲的。这是因为页面是存储管理的最小单位，一个页面不能同时属于"文件头"和"数据页"。把文件头放在独立的第 0 页，让文件头和数据页各管各的，边界清晰、实现简单。4072 字节的浪费对于磁盘来说微不足道，用一点空间换代码简化是值得的。
+
+## RmPageHdr：页级元信息
+
+`src/record/rm_defs.h:34`
+
+```cpp
+struct RmPageHdr {
+  int next_free_page_no;  // 下一个有空闲空间的页面号
+  int num_records;        // 当前页面已存储的记录数
+};
+```
+
+每个数据页的开头是 `RmPageHdr`。它很小，只有两个字段：
+
+| 字段 | 作用 |
+|------|------|
+| `num_records` | 本页当前存了几条记录，插入 +1、删除 -1 |
+| `next_free_page_no` | 空闲页面链表的"next 指针"，指向下一个有空闲空间的页面 |
+
+`next_free_page_no` 和 `first_free_page_no` 配合使用，构成一个**单向链表**，串联所有还有空位的页面。这个链表的具体运作方式会在 [05b 空闲页链表管理](./05b-record-free-list.md) 详细讲解。
+
 
 ## Rid：记录的唯一地址
 
@@ -66,52 +116,6 @@ struct RmRecord {
 `RmRecord` 是记录在内存中的表示。注意它只存**原始字节**，不关心记录里有什么字段——记录的具体列结构是上层（系统管理 SM）关心的，记录层只负责按字节搬运。
 
 记录层的所有记录都是**定长**的——表创建时就确定了 `record_size`，之后不会变（因为不支持变长字段 VARCHAR）。
-
-## RmFileHdr：文件级元信息
-
-`src/record/rm_defs.h:24`
-
-```cpp
-struct RmFileHdr {
-  int record_size;                    // 每条记录的大小（字节）
-  int num_pages;                      // 文件已分配的页面总数
-  int num_records_per_page;           // 每页最多能存几条记录
-  std::atomic<int> first_free_page_no; // 第一个有空闲空间的页面号
-  int bitmap_size;                    // 每页 bitmap 的字节数
-};
-```
-
-这个结构体存在每个表数据文件的**第 0 号页面**，记录了整张表的元信息。
-
-| 字段 | 作用 | 确定时机 |
-|------|------|----------|
-| `record_size` | 定长记录的大小，插入/查询时用来定位槽位 | 建表时确定，之后不变 |
-| `num_pages` | 当前文件有多少页，新增页面时递增 | 动态变化 |
-| `num_records_per_page` | 每页最多能放的记录数，由 PAGE_SIZE 和 record_size 算出 | 建表时计算 |
-| `first_free_page_no` | 指向有空闲空间的第一个页面号，-1 表示没有 | 动态变化 |
-| `bitmap_size` | 每页 bitmap 占多少字节，由 num_records_per_page 算出 | 建表时计算 |
-
-**设计要点**：每条记录定长，所以一页能放几条是固定的，不需要担心"剩下的空间够不够放"。
-
-## RmPageHdr：页级元信息
-
-`src/record/rm_defs.h:34`
-
-```cpp
-struct RmPageHdr {
-  int next_free_page_no;  // 下一个有空闲空间的页面号
-  int num_records;        // 当前页面已存储的记录数
-};
-```
-
-每个数据页的开头是 `RmPageHdr`。它很小，只有两个字段：
-
-| 字段 | 作用 |
-|------|------|
-| `num_records` | 本页当前存了几条记录，插入 +1、删除 -1 |
-| `next_free_page_no` | 空闲页面链表的"next 指针"，指向下一个有空闲空间的页面 |
-
-`next_free_page_no` 和 `first_free_page_no` 配合使用，构成一个**单向链表**，串联所有还有空位的页面。这个链表的具体运作方式会在 [05b 空闲页链表管理](./05b-record-free-list.md) 详细讲解。
 
 ## 数据结构之间的关系
 

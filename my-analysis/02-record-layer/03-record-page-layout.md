@@ -42,15 +42,11 @@ flowchart LR
 | Bitmap | 位图，标记每个槽是否被占用 | `bitmap_size` 字节 |
 | Slots | 定长记录槽位数组 | `num_records_per_page × record_size` 字节 |
 
-## 三段大小的计算过程
+## Bitmap 位槽对应关系
 
-以 student 表为例，假设 `record_size = 32` 字节：
+bitmap 的每一位对应一个槽位：bit = 1 表示该槽已占用，bit = 0 表示空闲。bitmap 用 `char[]` 数组实现，每字节（8 位）对应 8 个槽。
 
-### 第一步：算每页能放几条记录
-
-关键在于"**bitmap 的每一位对应一个槽位**"。bitmap 是用 `char[]` 数组实现的，每字节（8 位）对应 8 个槽。
-
-举个例子：假设 `num_records_per_page = 10`，每页可以记录 10 条记录，需要 `ceil(10/8) = 2` 字节的 bitmap。两个字节共 16 位，只用前 10 位标记 slot 0~9，后 6 位闲置：
+举个例子：假设 `num_records_per_page = 10`，需要 `ceil(10/8) = 2` 字节的 bitmap。两个字节共 16 位，只用前 10 位标记 slot 0~9，后 6 位闲置：
 
 ```
 bitmap 第 0 字节              bitmap 第 1 字节
@@ -76,6 +72,12 @@ s0  s1  s2  s3  s4  s5  s6  s7
 
 `s0=1, s3=1`，其余为 0。高位 b7 对应 slot 0，低位 b0 对应 slot 7。
 
+## 三段大小的计算过程
+
+以 student 表为例，假设 `record_size = 32` 字节。
+
+### 第一步：算每页能放几条记录
+
 计算公式来自 `RmManager::create_file()`（`src/record/rm_manager.h:48`）：
 
 ```
@@ -83,9 +85,7 @@ num_records_per_page = (BITMAP_WIDTH × (PAGE_SIZE - 1 - sizeof(RmFileHdr)) + 1)
                      / (1 + record_size × BITMAP_WIDTH)
 ```
 
-这个公式一步到位，不好理解。下面用 student 表（`record_size = 32`）逐步推导。
-
-### 推导公式
+这个公式一步到位，不好理解。下面逐步推导。
 
 **第 1 步：写出空间约束方程**
 
@@ -112,7 +112,7 @@ sizeof(RmPageHdr) + bitmap_size + n × record_size ≤ 4092
 - 若 r = 0（整除）：`ceil(8k/8) = k`，而 `(8k+7)/8 = k`（因为 7/8 在整数除法中舍去）✓
 - 若 r > 0（有余数）：`ceil(n/8) = k+1`，而 `(n+7)/8 = (8k+r+7)/8`，由于 `r ≥ 1, r+7 ≥ 8`，`(8k+r+7)/8 = k+1` ✓
 
-因此 `bitmap_size = (n + 7) / 8`，精确成立，不需要近似。
+因此 `bitmap_size = (n + 7) / 8`，精确成立。
 
 代入 ①：
 
@@ -153,9 +153,9 @@ slots = 128 × 32 = 4096 字节
 总计 = 8 + 16 + 4096 = 4120 > 4092 ✗  放不下！
 ```
 
-### 通用公式与推导的对应关系
+**通用公式与推导的对应关系**
 
-上面逐步推导的结果等价于代码中的公式。把推导过程整理成通用形式：
+上面逐步推导的结果等价于代码中的公式：
 
 ```
 推导:  n = 4084 × BITMAP_WIDTH / (1 + record_size × BITMAP_WIDTH)
@@ -179,9 +179,11 @@ bitmap_size = ceil(num_records_per_page / 8)
 
 `src/record/rm_manager.h:51`
 
-## RmPageHandle：页面的"读写指针"
+## RmPageHandle：页面的读写指针
 
-`RmPageHandle` 是一个轻量级的包装结构体，把页面上的三块区域解析成对应的指针，方便后续直接读写。
+`RmPageHandle` 是一个轻量级的包装结构体，把页面上三段区域解析成对应指针，方便后续直接读写。
+
+### 结构体定义
 
 `src/record/rm_file_handle.h:25`
 
@@ -195,7 +197,55 @@ struct RmPageHandle {
 };
 ```
 
-**构造函数**（`src/record/rm_file_handle.h:37`）：
+### `page` 指向的是什么？
+
+`page` 是**当前操作的那一页**，不是"所有页的数组"。一张表的数据文件有很多页，每次 `fetch_page_handle(page_no)` 只从缓冲池取出**一个** Page 对象：
+
+```
+RmPageHandle ph = file_handle->fetch_page_handle(3);
+// ph.page  → 指向缓冲池中 {fd:3, page_no:3} 这一个 Page
+// ph.slots → 指向这一页的记录数据区
+```
+
+用完 `unpin_page`，再取下一页时生成新的 RmPageHandle 指向另一个 Page。
+
+### `page->get_data()` 返回什么？
+
+`get_data()` 返回 `Page` 对象内部 `data_[PAGE_SIZE]` 数组的首地址（`page.h:81`），即这一页数据在内存中的起始位置。构造函数的偏移计算都是从这个首地址开始的。
+
+### `reinterpret_cast` 是什么？
+
+`Page` 底层是原始字节数组 `char data_[4096]`，编译器只知道它是 `char*`。但我们知道偏移 4~11 存的是 `RmPageHdr` 结构体——怎么告诉编译器？
+
+`reinterpret_cast<RmPageHdr*>(地址)` 的意思是：**"把这块内存强行解释为 RmPageHdr 类型的指针"**。之后就能用 `page_hdr->num_records` 直接读写字段，不需要手动逐字节解析。
+
+打比方：一块内存像一张白纸，`reinterpret_cast` 告诉编译器"请按 RmPageHdr 的格式来读"，编译器就知道哪个偏移是 `num_records`、哪个是 `next_free_page_no`。
+
+```mermaid
+flowchart LR
+    subgraph raw["Page data_ 原始字节"]
+        direction LR
+        B0["0x00"]
+        B1["0x01"]
+        B2["0x02"]
+        B3["0x03"]
+        B4["0x04"]
+        B5["0x05"]
+        BN["..."]
+    end
+
+    subgraph hdr["reinterpret_cast 后"]
+        direction LR
+        H0["num_records int<br/>4 字节 偏移 4-7"]
+        H1["next_free_page_no int<br/>4 字节 偏移 8-11"]
+    end
+
+    raw -->|"重新解释"| hdr
+```
+
+### 构造函数：三个指针的计算
+
+现在有了前置知识，看构造函数就清楚了：
 
 ```cpp
 RmPageHandle(const RmFileHdr* fhdr_, Page* page_)
@@ -208,100 +258,38 @@ RmPageHandle(const RmFileHdr* fhdr_, Page* page_)
 }
 ```
 
-### `page` 指向的是什么？
-
-`page_` 是**当前操作的那一页**，不是"所有页的数组"。一张表的数据文件有很多页（第 1 页、第 2 页……），每次 `fetch_page_handle(page_no)` 只从缓冲池取出**一个** Page 对象，包装成 RmPageHandle 返回。
-
-例如要读取第 3 页的记录：
-
-```
-RmPageHandle ph = file_handle->fetch_page_handle(3);
-// ph.page  → 指向缓冲池中 {fd:3, page_no:3} 这一个 Page 对象
-// ph.slots → 指向这一页的记录数据区
-```
-
-用完这一页后 `unpin_page`，再取下一页时又会生成新的 RmPageHandle 指向另一个 Page。
-
-### `page->get_data()` 返回什么？
-
-`get_data()` 返回 `Page` 对象内部的 `data_[PAGE_SIZE]` 数组的首地址（`page.h:81`），即这一页数据在内存中的起始位置。所有偏移计算都是从这个首地址开始的。
-
-### 构造函数是怎么计算三个指针的？
-
 以一个具体数值来追踪——假设内存地址从 `0x1000` 开始：
 
 ```
-page->get_data()                          → 0x1000  （data_ 数组首地址）
-page->OFFSET_PAGE_HDR = 4                 → LSN 占 4 字节
-sizeof(RmPageHdr)    = 8                  → RmPageHdr 占 8 字节
-file_hdr->bitmap_size                     → 从文件头获取
+已知:
+  page->get_data()        → 0x1000   (data_ 数组首地址)
+  page->OFFSET_PAGE_HDR   = 4        (LSN 占 4 字节)
+  sizeof(RmPageHdr)       = 8
+  file_hdr->bitmap_size   从文件头获取
 ```
 
-```
-page_hdr = reinterpret_cast<RmPageHdr*>(
-    page->get_data() + page->OFFSET_PAGE_HDR
-);
-// = reinterpret_cast<RmPageHdr*>(0x1000 + 4)
-// = reinterpret_cast<RmPageHdr*>(0x1004)
-// 含义：跳过 LSN（4字节），0x1004 处存的就是 RmPageHdr
-```
+**page_hdr** — 跳过通用头（LSN），指向 RmPageHdr：
 
 ```
-bitmap = page->get_data() + sizeof(RmPageHdr) + page->OFFSET_PAGE_HDR;
-//      = 0x1000 + 8 + 4
-//      = 0x100C
-// 含义：跳过 LSN（4字节）再跳过 RmPageHdr（8字节）= 偏移 12 字节
+reinterpret_cast<RmPageHdr*>(0x1000 + 4)
+= reinterpret_cast<RmPageHdr*>(0x1004)
 ```
 
+**bitmap** — 跳过 LSN 再跳过 RmPageHdr：
+
 ```
-slots = bitmap + file_hdr->bitmap_size;
-// 含义：bitmap 之后再跳过 bitmap_size 字节，就是记录数据区
-```
-
-### 为什么 bitmap 不从 page_hdr 推算？
-
-你观察得很对——bitmap 紧跟在 RmPageHdr 之后，写成这样会更直观：
-
-```cpp
-bitmap = reinterpret_cast<char*>(page_hdr) + sizeof(RmPageHdr);
-//       把 page_hdr 转回 char*   再跳过 8 字节 = bitmap 起始
+0x1000 + 4 + 8 = 0x100C
 ```
 
-源码没有这样做，而是每次都从 `get_data()` 加固定偏移。两种写法结果一样，但 `page_hdr + sizeof(RmPageHdr)` 更好读——它反映了物理上"bitmap 紧跟在 RmPageHdr 之后"的事实。
+> 源码中写的是 `sizeof(RmPageHdr) + page->OFFSET_PAGE_HDR`（先 8 后 4），与物理布局顺序（先 LSN 后 RmPageHdr）不一致。加法满足交换律所以结果正确，但写成 `OFFSET_PAGE_HDR + sizeof(RmPageHdr)` 从左到右对应物理从上到下，阅读更顺畅。
 
-另外源码中 `sizeof(RmPageHdr) + page->OFFSET_PAGE_HDR` 的加法顺序与物理布局不一致（源码先加了 8 再加 4），但加法满足交换律，结果不受影响。如果写成 `OFFSET_PAGE_HDR + sizeof(RmPageHdr)`（先 LSN 再 RmPageHdr），阅读时从左到右就对应了页面上从上到下的布局顺序，更容易理解。
+**slots** — 在 bitmap 之后再跳过 bitmap_size：
 
-### `reinterpret_cast` 是什么？
-
-`Page` 底层是一块原始字节数组 `char data_[4096]`。现在我们知道前 4 字节是 LSN，接下来 8 字节是 `RmPageHdr` 结构体——但编译器不知道，它只看到 `char*`。
-
-`reinterpret_cast<RmPageHdr*>(地址)` 的意思是：**"把这块内存地址强行解释为 RmPageHdr 类型的指针"**。这样后续就可以通过 `page_hdr->num_records` 直接读写页头字段，而不需要手动逐字节解析。
-
-打个比方：一块内存就像一张白纸，`reinterpret_cast` 告诉编译器"请按 RmPageHdr 的格式来读这张纸"，编译器就知道哪个偏移是 `num_records`、哪个偏移是 `next_free_page_no`。
-
-```mermaid
-flowchart TB
-    subgraph raw["Page data_ 原始字节"]
-        direction TB
-        B0["0x00"]
-        B1["0x01"]
-        B2["0x02"]
-        B3["0x03"]
-        B4["0x04"]
-        B5["0x05"]
-        BN["..."]
-    end
-
-    subgraph hdr["reinterpret_cast 后"]
-        direction TB
-        H1["RmPageHdr<br/>next_free_page_no int<br/>4 字节 偏移 4-7"]
-        H0["RmPageHdr<br/>num_records int<br/>4 字节 偏移 8-11"]
-    end
-
-    raw -->|"reinterpret_cast 重新解释"| hdr
+```
+bitmap + file_hdr->bitmap_size
 ```
 
-三个指针的偏移关系一目了然：
+三个指针的偏移关系：
 
 ```mermaid
 flowchart TD
@@ -325,6 +313,16 @@ flowchart TD
     BM -->|"指向"| P2
     SL -->|"指向"| P3
 ```
+
+### 为什么 bitmap 不从 page_hdr 推算？
+
+bitmap 紧跟在 RmPageHdr 之后，写成这样更直观：
+
+```cpp
+bitmap = reinterpret_cast<char*>(page_hdr) + sizeof(RmPageHdr);
+```
+
+源码没有这样做，而是每次都从 `get_data()` 加固定偏移。两种写法结果一样，但从 `page_hdr` 推算更能反映物理上"bitmap 紧跟在 RmPageHdr 之后"的事实。
 
 ## get_slot：定位具体记录
 

@@ -43,12 +43,12 @@ flowchart TD
 
     subgraph data["数据管理层"]
         style data fill:#fef3c7,stroke:#f59e0b,color:#92400e
-        B["RM 记录管理 与 IX 索引管理"]
+        B["RM 记录管理 <br/> IX 索引管理"]
     end
 
     subgraph storage["存储层"]
         style storage fill:#d1fae5,stroke:#10b981,color:#065f46
-        C["Buffer Pool + Disk Manager + Replacer + Page"]
+        C["Buffer Pool <br/> Disk Manager <br/> Replacer <br/> Page"]
     end
 
     subgraph disk["磁盘文件"]

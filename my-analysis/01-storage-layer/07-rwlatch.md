@@ -84,7 +84,7 @@ DBMS 中的锁按**保护对象**和**持有时间**分不同级别：
 三层锁的从属关系——越往外层保护范围越大、持有时间越长：
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph db["数据库"]
         style db fill:#dbeafe,stroke:#3b82f6
         subgraph tab["表 / 行 逻辑数据"]

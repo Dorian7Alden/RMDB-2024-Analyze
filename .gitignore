@@ -40,3 +40,6 @@ src/parser/parser.yy.cpp
 
 # personal 
 TODO.md
+# Claude Code runtime files
+.claude/scheduled_tasks.lock
+.claude/settings.local.json

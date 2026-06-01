@@ -20,7 +20,7 @@
 |------|------|------|
 | **第 0 章** | [整体架构概览](./00-architecture-overview/README.md) | DBMS 是什么、RMDB 分层架构、SQL 执行全流程 |
 | 第 1 章 | [存储层](./01-storage-layer/README.md) | Disk Manager、Page、Buffer Pool、LRU、Page Guard、RWLatch |
-| 第 2 章 | 记录层 | （待编写）记录格式、记录增删改查 |
+| 第 2 章 | [记录层](./02-record-layer/README.md) | 记录格式、记录增删改查、空闲链表、扫描 |
 | 第 3 章 | 索引层 | （待编写）B+ 树索引 |
 | 第 4 章 | 系统管理 | （待编写）元数据管理、DDL |
 | 第 5 章 | 查询处理 | （待编写）解析、分析、优化、执行 |

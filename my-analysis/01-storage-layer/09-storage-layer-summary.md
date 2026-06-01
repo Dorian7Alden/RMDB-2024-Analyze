@@ -17,4 +17,4 @@ Disk Manager → Page → Buffer Pool → Replacer → Page Guard → RWLatch
 | Page Guard | **需从零实现** | RAII 自动 unpin + 三级锁守卫 |
 | RWLatch | **需从零实现** | shared_mutex 封装，页级读写锁 |
 
-下一章：[第 2 章：记录层](../02-record-layer/README.md)（待编写）
+下一章：[第 2 章：记录层](../02-record-layer/README.md)

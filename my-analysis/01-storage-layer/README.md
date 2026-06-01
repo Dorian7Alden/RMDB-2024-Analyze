@@ -34,15 +34,30 @@
 
 ## 存储层在整体架构中的位置
 
-```
-查询处理层 (Executor)
-  │
-  ▼
-数据管理层 (RM / IX)
-  │
-  ▼
-存储层     ← 本章 ← Buffer Pool + Disk Manager + Replacer + Page
-  │
-  ▼
-磁盘文件 (*.db)
+```mermaid
+flowchart TD
+    subgraph exec["查询处理层"]
+        style exec fill:#dbeafe,stroke:#3b82f6,color:#1e40af
+        A["Executor 执行器"]
+    end
+
+    subgraph data["数据管理层"]
+        style data fill:#fef3c7,stroke:#f59e0b,color:#92400e
+        B["RM 记录管理 与 IX 索引管理"]
+    end
+
+    subgraph storage["存储层"]
+        style storage fill:#d1fae5,stroke:#10b981,color:#065f46
+        C["Buffer Pool + Disk Manager + Replacer + Page"]
+    end
+
+    subgraph disk["磁盘文件"]
+        style disk fill:#f3f4f6,stroke:#6b7280,color:#374151
+        D[".db 数据文件"]
+    end
+
+    exec --> data --> storage --> disk
+
+    note["本章"]:::sticky -.-> storage
+    classDef sticky fill:#fff9c4,stroke:#f9a825,stroke-dasharray:4
 ```

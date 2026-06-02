@@ -62,7 +62,9 @@ flowchart TD
 要点：
 - 先检查 bitmap 确认该槽位确实有记录
 - `std::make_unique<RmRecord>` 在堆上创建一个 `RmRecord` 对象，包装成 `unique_ptr` 智能指针返回。离开作用域时自动释放，不需要手动 `delete`
-- 传入的三个参数对应 `RmRecord(char* data_, int size_, bool non_copy)` 构造函数，从页面槽位拷贝 `record_size` 字节的数据
+- 传入的三个参数对应 `RmRecord(char* data_, int size_, bool non_copy)` 构造函数
+- 第三个参数 `true`：注释中说"页面一直在内存中则不需要拷贝，直接指向槽位地址"。但实际实现中，**三个构造函数全部做了 `memcpy` 拷贝**——`non_copy` 参数对行为没有影响。这样做的原因是安全：`RmRecord` 拥有自己的独立数据副本，即使页面被 `unpin_page` 淘汰，记录数据也不会变成悬空指针
+- `unpin_page` 的 `dirty=false`：只读操作，页面没被修改
 - `unpin_page` 的 `dirty=false`：只读操作，页面没被修改
 
 ## insert_record（不指定位置）：自动找空位插入

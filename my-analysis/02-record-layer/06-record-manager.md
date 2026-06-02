@@ -20,6 +20,25 @@ class RmManager {
 
 持有存储层的两个核心组件的指针——自己不做磁盘读写，而是委托给 `DiskManager` 和 `BufferPoolManager`。
 
+> **RmManager 跟 RmFileHandle 是什么关系？它怎么"管理" RmFileHandle？**
+>
+> RmManager 并不持有 RmFileHandle 的成员变量，也不保存已打开的 RmFileHandle 列表。
+> "管理"体现在方法的参数和返回值中：
+>
+> - `open_file` **创建** RmFileHandle，包装成 `unique_ptr` 返回给调用方（上层 SM 或执行器）
+> - `close_file` 接收一个 `RmFileHandle*`，从它读取 `fd_` 和 `file_hdr_`，执行刷盘、清理、关闭
+> - `flush_file` 同样接收 `RmFileHandle*`，执行刷盘
+>
+> 所以 RmManager 和 RmFileHandle 之间**有交互**——通过方法参数传递，只是不持有成员变量。
+> RmFileHandle 的生命周期由调用方持有的 `unique_ptr` 管理，RmManager 在关键时刻（打开、关闭、刷盘）参与操作。
+
+> **文件生命周期为什么不直接由 BufferPool 管理？**
+>
+> 缓冲池管理的是页面（Page）的缓存，不是文件。
+> 文件层面的操作（创建、打开、关闭、删除）需要调用操作系统的文件 API，这是 DiskManager 的职责。
+> RmManager 的角色是**编排者**——它知道"关闭文件时需要先写文件头、再刷脏页、再清页表、最后关文件"这个流程，但每一步都委托给 DiskManager 或 BufferPoolManager 执行。
+> 底层确实只暴露接口，逻辑控制在 RmManager 这里。
+
 ## 文件操作一览
 
 | 方法 | 作用 | 调用时机 |

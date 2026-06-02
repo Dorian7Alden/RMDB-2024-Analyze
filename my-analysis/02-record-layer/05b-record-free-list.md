@@ -283,7 +283,9 @@ insert_record():
 
 ## 框架与参考实现的差异
 
-框架中 `RmFileHandle` 没有 `latch_`（`std::mutex`），并在 `db2026-x/src/record/rm_file_handle.cpp:220` 提供了一个 `remove_page_from_free_list` 方法，可以从链表任意位置删除节点。而参考实现没有这个方法——因为参考实现有 `latch_` 保护，`create_page_handle` 拿到的总是链表头，插入满页时直接 `first_free_page_no = next_free_page_no` 就移除了头部，不需要在链表中间删除。学习时应以参考实现的方案为准，理解"为什么用锁来保证拿到的一定是链表头"这个设计考量。
+框架中 `RmFileHandle` 没有 `latch_`（`std::mutex`），并在 `db2026-x/src/record/rm_file_handle.cpp:220` 提供了一个 `remove_page_from_free_list` 方法，可以从链表任意位置删除节点。
+
+而参考实现没有这个方法——因为参考实现有 `latch_` 保护，`create_page_handle` 拿到的总是链表头，插入满页时直接 `first_free_page_no = next_free_page_no` 就移除了头部，不需要在链表中间删除。学习时应以参考实现的方案为准，理解"为什么用锁来保证拿到的一定是链表头"这个设计考量。
 
 ## 源码对应
 

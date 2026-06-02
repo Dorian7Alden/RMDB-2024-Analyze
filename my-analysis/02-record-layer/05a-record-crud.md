@@ -77,6 +77,96 @@ flowchart TD
   但实际实现中，**三个构造函数全部做了 `memcpy` 拷贝**——`non_copy` 参数对行为没有影响。这样做的原因是安全：`RmRecord` 拥有自己的独立数据副本，即使页面被 `unpin_page` 淘汰，记录数据也不会变成悬空指针
 
 > **那 RmRecord 会不会一直占用内存不被释放？** 不会。`RmRecord` 被包装在 `unique_ptr` 里返回给调用方。调用方用完（`unique_ptr` 离开作用域）后，`RmRecord` 的析构函数自动执行 `delete[] data`，内存释放。页面由缓冲池管理淘汰，记录由 `unique_ptr` 管理销毁，两者各管各的，互不影响。
+
+### Page 与 RmRecord 的生命周期详解
+
+以下用一个具体实例跟踪从"读取记录"到"内存释放"的全过程。
+
+**场景**：读取 student 表中 Alice 的记录 `Rid{page_no: 1, slot_no: 0}`，`record_size = 28`。
+
+```cpp
+// 执行器调用
+auto record = file_handle->get_record(Rid{1, 0}, context);
+// 处理 record->data ...
+// record 离开作用域，自动销毁
+```
+
+**时间线追踪**：
+
+```
+时刻 ① fetch_page_handle(1)
+  ┌─────────────────────────────────────────────┐
+  │ 缓冲池                                       │
+  │  frame[3]: Page{fd:3, page_no:1}            │
+  │  data_[0..4095] = 页面 1 的原始字节           │
+  │  pin_count_ = 1  ← 被 pin 住，不可淘汰        │
+  └─────────────────────────────────────────────┘
+
+时刻 ② memcpy 拷贝记录
+  ┌──────────────────────────┐  ┌──────────────────────────┐
+  │ frame[3].data_           │  │ RmRecord (堆上)           │
+  │ offset 13: slot 0 数据    │  │ data → 0x7f... (堆地址)   │
+  │ "Alice,20,..." 28 字节   │  │ size = 28                 │
+  │                          │  │ allocated_ = true          │
+  │ 仍在缓冲池，被 pin 住     │  │ 独立副本，脱离页面存在      │
+  └──────────────────────────┘  └──────────────────────────┘
+          memcpy ──────────────────→
+
+时刻 ③ unpin_page(false)
+  ┌─────────────────────────────────────────────┐
+  │ frame[3].pin_count_ = 0  ← 变为可淘汰        │
+  │ frame[3].is_dirty_ = false ← 没修改过        │
+  │ 页面数据还在 frame[3] 里，暂时保留            │
+  └─────────────────────────────────────────────┘
+
+时刻 ④ 执行器处理 record
+  ┌──────────────────────────┐
+  │ RmRecord (堆上)           │
+  │ data → "Alice,20,..."    │  ← 正常使用中
+  │ 页面可能已被淘汰，          │     但记录不受影响
+  │ 因为记录有自己的副本        │
+  └──────────────────────────┘
+
+时刻 ⑤ 缓冲池满，Replacer 淘汰 frame[3]
+  ┌─────────────────────────────────────────────┐
+  │ frame[3] 被 LRU/Clock 选中淘汰                │
+  │ is_dirty_ = false → 不需要写回磁盘             │
+  │ frame[3] 被新页面覆盖，原数据丢失              │
+  │ 但 record 的数据在另一块堆内存中，完好无损      │
+  └─────────────────────────────────────────────┘
+
+时刻 ⑥ unique_ptr 离开作用域
+  ┌──────────────────────────┐
+  │ ~RmRecord() 析构          │
+  │ delete[] data             │  ← 堆内存释放
+  │ RmRecord 对象销毁          │
+  └──────────────────────────┘
+```
+
+**两个对象的生命周期对比**：
+
+```mermaid
+flowchart LR
+    subgraph page_life["Page 生命周期"]
+        style page_life fill:#d1fae5,stroke:#10b981,color:#065f46
+        direction TB
+        P1["fetch_page<br/>pin_count=1"] --> P2["数据在缓冲池中<br/>可读写"]
+        P2 --> P3["unpin_page<br/>pin_count=0"]
+        P3 --> P4["Replacer 淘汰<br/>frame 被复用或写回磁盘"]
+    end
+
+    subgraph record_life["RmRecord 生命周期"]
+        style record_life fill:#fef3c7,stroke:#f59e0b,color:#92400e
+        direction TB
+        R1["make_unique<br/>new + memcpy"] --> R2["独立堆内存<br/>与页面无关"]
+        R2 --> R3["调用方使用<br/>读 data 字段"]
+        R3 --> R4["unique_ptr 离开作用域<br/>~RmRecord() delete[]"]
+    end
+
+    P2 -.->|"memcpy 这一刻<br/>两者有数据关联"| R1
+```
+
+关键认知：**memcpy 是"分界线"**。在这之前，记录数据存在于页面内；在这之后，记录有了自己的堆内存副本，和页面彻底分道扬镳。页面可以随时被淘汰，记录可以独立存活，各自走完自己的生命周期，互不干扰。
 - `unpin_page` 的 `dirty=false`：只读操作，页面没被修改
 
 ## insert_record（不指定位置）：自动找空位插入

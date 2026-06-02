@@ -63,8 +63,20 @@ flowchart TD
 - 先检查 bitmap 确认该槽位确实有记录
 - `std::make_unique<RmRecord>` 在堆上创建一个 `RmRecord` 对象，包装成 `unique_ptr` 智能指针返回。离开作用域时自动释放，不需要手动 `delete`
 - 传入的三个参数对应 `RmRecord(char* data_, int size_, bool non_copy)` 构造函数
-- 第三个参数 `true`：注释中说"页面一直在内存中则不需要拷贝，直接指向槽位地址"。但实际实现中，**三个构造函数全部做了 `memcpy` 拷贝**——`non_copy` 参数对行为没有影响。这样做的原因是安全：`RmRecord` 拥有自己的独立数据副本，即使页面被 `unpin_page` 淘汰，记录数据也不会变成悬空指针
-- `unpin_page` 的 `dirty=false`：只读操作，页面没被修改
+- 第三个参数 `true`：注释中说"页面一直在内存中则不需要拷贝，直接指向槽位地址"。
+  ```cpp
+  // rm_defs.h
+  // 如果页面一直都在内存中，则不需要拷贝，直接指向内存中对应的槽
+  RmRecord(char* data_, int size_, bool non_copy) {
+    size = size_;
+    data = new char[size_];
+    memcpy(data, data_, size_);
+    allocated_ = true;
+  }
+  ```
+  但实际实现中，**三个构造函数全部做了 `memcpy` 拷贝**——`non_copy` 参数对行为没有影响。这样做的原因是安全：`RmRecord` 拥有自己的独立数据副本，即使页面被 `unpin_page` 淘汰，记录数据也不会变成悬空指针
+
+> **那 RmRecord 会不会一直占用内存不被释放？** 不会。`RmRecord` 被包装在 `unique_ptr` 里返回给调用方。调用方用完（`unique_ptr` 离开作用域）后，`RmRecord` 的析构函数自动执行 `delete[] data`，内存释放。页面由缓冲池管理淘汰，记录由 `unique_ptr` 管理销毁，两者各管各的，互不影响。
 - `unpin_page` 的 `dirty=false`：只读操作，页面没被修改
 
 ## insert_record（不指定位置）：自动找空位插入

@@ -26,7 +26,7 @@
 > ```
 > 但这里没有单独的 `Node`。链表的"next 指针"直接嵌在每个页面的 `RmPageHdr` 里面——`next_free_page_no` 就是那个指针。每个有空闲空间的页面自身就是链表的一个节点。
 >
-> 回顾一下每个页面存了什么（详见 [03. 数据页内部布局](./03-record-page-layout.md)）：
+> 回顾一下每个页面存了什么（详见 [03-record-page-layout.md](./03-record-page-layout.md)）：
 >
 > ```
 > 页面内部（4096 字节）：

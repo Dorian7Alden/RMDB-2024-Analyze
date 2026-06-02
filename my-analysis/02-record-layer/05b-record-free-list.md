@@ -283,45 +283,7 @@ insert_record():
 
 ## 框架与参考实现的差异
 
-框架在 `RmFileHandle` 中没有 `latch_`（`std::mutex`），并且新增了一个 `remove_page_from_free_list` 方法（`db2026-x/src/record/rm_file_handle.cpp:220`）：
-
-```cpp
-void RmFileHandle::remove_page_from_free_list(RmPageHandle &page_handle) {
-  int target_page_no = page_handle.page->get_page_id().page_no;
-
-  if (file_hdr_.first_free_page_no == target_page_no) {
-    // 目标在链表头：直接移除头部
-    file_hdr_.first_free_page_no = page_handle.page_hdr->next_free_page_no;
-    page_handle.page_hdr->next_free_page_no = RM_NO_PAGE;
-    return;
-  }
-
-  // 目标在链表中间或尾部：遍历找到前驱
-  int prev_page_no = file_hdr_.first_free_page_no;
-  while (prev_page_no != RM_NO_PAGE) {
-    auto prev_page_handle = fetch_page_handle(prev_page_no);
-    int next_page_no = prev_page_handle.page_hdr->next_free_page_no;
-    if (next_page_no == target_page_no) {
-      // 找到前驱，跳过目标节点
-      prev_page_handle.page_hdr->next_free_page_no =
-          page_handle.page_hdr->next_free_page_no;
-      page_handle.page_hdr->next_free_page_no = RM_NO_PAGE;
-      buffer_pool_manager_->unpin_page(
-          prev_page_handle.page->get_page_id(), true);
-      return;
-    }
-    buffer_pool_manager_->unpin_page(
-        prev_page_handle.page->get_page_id(), false);
-    prev_page_no = next_page_no;
-  }
-}
-```
-
-**为什么参考实现不需要这个方法？**
-
-参考实现中，`create_page_handle` 拿到的总是链表**头**。插入时如果页面满了，直接更新 `first_free_page_no = next_free_page_no` 就把头部移除了。不需要在链表中间删除节点。
-
-框架为什么写了这个方法？因为框架的 `insert_record` 可能拿到的不一定是链表头——`create_page_handle` 返回链表头，但如果没有加锁保护，并发时可能发生竞争。不过框架也没有 `latch_`，所以这个方法的出现可能是设计上的防御性编程，也可能是不同版本的实现差异。
+框架中 `RmFileHandle` 没有 `latch_`（`std::mutex`），并在 `db2026-x/src/record/rm_file_handle.cpp:220` 提供了一个 `remove_page_from_free_list` 方法，可以从链表任意位置删除节点。而参考实现没有这个方法——因为参考实现有 `latch_` 保护，`create_page_handle` 拿到的总是链表头，插入满页时直接 `first_free_page_no = next_free_page_no` 就移除了头部，不需要在链表中间删除。学习时应以参考实现的方案为准，理解"为什么用锁来保证拿到的一定是链表头"这个设计考量。
 
 ## 源码对应
 

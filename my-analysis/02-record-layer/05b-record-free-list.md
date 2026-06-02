@@ -13,10 +13,38 @@
 
 空链表时，`first_free_page_no = RM_NO_PAGE`（即 -1）。
 
+> **这个链表的数据结构是什么？节点在哪里？**
+>
+> 这是一个**侵入式链表**（intrusive linked list）——节点就是数据页本身，不是独立的 `Node` 结构体。
+>
+> 常见的链表是：
+> ```
+> struct Node {
+>   int data;
+>   Node* next;    // 指向下一个 Node
+> };
+> ```
+> 但这里没有单独的 `Node`。链表的"next 指针"直接嵌在每个页面的 `RmPageHdr` 里面——`next_free_page_no` 就是那个指针。每个有空闲空间的页面自身就是链表的一个节点。
+>
+> 回顾一下每个页面存了什么（详见 [03. 数据页内部布局](./03-record-page-layout.md)）：
+>
+> ```
+> 页面内部（4096 字节）：
+> ┌────────────┬───────────────┬──────────────┬──────────────────────┐
+> │ LSN (4B)   │ RmPageHdr (8B) │ Bitmap       │ Slots 记录数据区       │
+> │            │ num_records    │ 槽位占用标记  │ record_size × n 字节   │
+> │            │ next_free_     │              │                      │
+> │            │   page_no ←──  │              │                      │
+> │            │   链表 next 指针 │              │                      │
+> └────────────┴───────────────┴──────────────┴──────────────────────┘
+> ```
+>
+> 所以"页面 1 是一个链表节点"指的是：页面 1 的 `RmPageHdr.next_free_page_no` 指向下一个有空闲空间的页面号。不是页面旁边挂了一个独立的 Node 对象。
+
 > **为什么需要这个链表？** 数据页在文件中是按 page_no 顺序排列的，每个页面位置固定。但一个页面"有空位还是已满"与它的 page_no 没有任何关系——你无法根据页面号推断它有没有空位。如果没有这个链表，每次插入都要从第 1 页开始逐个检查每个页面的 bitmap，直到找到空位，最坏情况要扫遍所有页面。空闲链表相当于给"有空位的页面"建了一个索引，插入时 O(1) 就能定位到目标页面。
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph fh["RmFileHdr 文件头"]
         style fh fill:#fef3c7,stroke:#f59e0b,color:#92400e
         FH["first_free_page_no = 1"]
@@ -121,7 +149,7 @@ void RmFileHandle::release_page_handle(RmPageHandle& page_handle) {
 **头插法**——把当前页面插到空闲链表的最前面：
 
 ```mermaid
-flowchart TD
+flowchart LR
     subgraph before["插入前"]
         style before fill:#fee2e2,stroke:#ef4444,color:#991b1b
         B_H["first_free_page_no = 3"]
@@ -158,7 +186,7 @@ flowchart TD
 
 ## 具体追踪实例
 
-假设 `num_records_per_page = 3`（每页最多 3 条），从头追踪 `first` 和 `next` 的值变化。
+下面用 `num_records_per_page = 3` 追踪每一步。先记住：**"链表节点"就是有空闲空间的页面自身**，"链表指针"就是 `RmPageHdr` 里的 `next_free_page_no`。所以"把页面移出链表"就是修改 `first_free_page_no` 让它跳过这个页面。
 
 **初始状态**：文件刚创建，只有第 0 页（文件头）。
 ```

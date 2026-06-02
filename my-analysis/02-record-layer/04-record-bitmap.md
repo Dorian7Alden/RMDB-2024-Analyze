@@ -33,6 +33,8 @@ static constexpr int BITMAP_WIDTH = 8;                 // 每个字节有 8 位
 static constexpr unsigned BITMAP_HIGHEST_BIT = 0x80u;  // 0b10000000
 ```
 
+> **`0x80` 是什么意思？** `0x` 前缀表示十六进制。`0x80 = 8×16 + 0 = 128`（十进制），写成二进制就是 `0b10000000`。用十六进制是因为位运算时关心二进制长什么样——`0x80` 一眼看出最高位是 1。同理 `0x40` 是 `01000000`，`0x10` 是 `00010000`，比写 64、16 直观。
+
 ### 前置知识：位运算符
 
 如果对位运算不熟悉，先看这几个运算符（以 8 位 `char` 为例）：
@@ -145,8 +147,9 @@ pos % 8 = 7:  0b10000000 >> 7  =  0b00000001   ← 1 在 bit 0，对应 slot 7
 | `next_bit(bit, bm, max_n, curr)` | 从 curr+1 开始找下一个为 0 或 1 的位 | 线性遍历 |
 
 ```mermaid
-flowchart TD
+flowchart TB
     subgraph set["set bm pos 10"]
+        direction TB
         style set fill:#d1fae5,stroke:#10b981,color:#065f46
         S1["bucket = 10/8 = 1"]
         S2["bit = 0x80 >> 2 = 0b00100000"]
@@ -155,6 +158,7 @@ flowchart TD
     end
 
     subgraph reset["reset bm pos 10"]
+        direction TB
         style reset fill:#fee2e2,stroke:#ef4444,color:#991b1b
         R1["bucket = 10/8 = 1"]
         R2["bit = 0b00100000"]

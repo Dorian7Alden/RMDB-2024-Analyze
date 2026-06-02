@@ -1,4 +1,4 @@
-# 09. 框架与参考实现对比
+# 10. 框架与参考实现对比
 
 记录层的框架（`db2026-x/`）和参考实现（`src/`）在整体结构上是一致的——数据结构定义、`RmPageHandle`、`RmManager`、`Bitmap` 都完全相同。差异集中在 `RmFileHandle` 的 CRUD 实现和 `RmScan` 的扫描策略上。
 
@@ -173,4 +173,4 @@ if (++page_handle.page_hdr->num_records == file_hdr_.num_records_per_page) {
 | remove_page_from_free_list | `db2026-x/src/record/rm_file_handle.cpp:220` | 无 |
 | RmScan.next | `db2026-x/src/record/rm_scan.cpp:30` | `src/record/rm_scan.cpp:35` |
 
-上一节：[08-record-structure-example.md](./08-record-structure-example.md) | 下一节：[10-record-layer-summary.md](./10-record-layer-summary.md)
+上一节：[09-record-structure-example.md](./09-record-structure-example.md) | 下一节：[11-record-layer-summary.md](./11-record-layer-summary.md)

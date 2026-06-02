@@ -184,4 +184,4 @@ BufferPoolManager  ←──── RmPageHandle (fetch/unpin 页面)
 
 `RmManager` 在更外层，负责文件的创建和销毁，不参与具体的记录操作。
 
-上一节：[07-record-scan.md](./07-record-scan.md) | 下一节：[08-record-structure-example.md](./08-record-structure-example.md)
+上一节：[07-record-scan.md](./07-record-scan.md) | 下一节：[09-record-structure-example.md](./09-record-structure-example.md)

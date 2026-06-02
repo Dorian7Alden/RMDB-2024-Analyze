@@ -1,4 +1,4 @@
-# 08. 记录层实例串讲
+# 09. 记录层实例串讲
 
 前面 01~07 逐一讲解了记录层的各个组件。本文用一个具体实例从头到尾把所有组件串起来，建立整体认知。
 
@@ -411,4 +411,4 @@ flowchart TD
 | `RmPageHandle` | page_hdr + bitmap + slots 三指针 | 页面访问的"手柄" |
 | `RmScan` | cur_page_handle_ + rid_ | 扫描时的当前位置 |
 
-上一节：[07b-record-interaction.md](./07-record-scan.md) | 下一节：[09-record-frame-vs-reference.md](./09-record-frame-vs-reference.md)
+上一节：[08-record-interaction.md](./08-record-interaction.md) | 下一节：[10-record-frame-vs-reference.md](./10-record-frame-vs-reference.md)

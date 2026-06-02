@@ -206,4 +206,4 @@ void RmScan::next() {
 | get_record | `src/record/rm_scan.cpp` | 85-88 |
 | 框架版本 | `db2026-x/src/record/rm_scan.cpp` | 18-74 |
 
-上一节：[06-record-manager.md](./06-record-manager.md) | 下一节：[08-record-structure-example.md](./08-record-structure-example.md)
+上一节：[06-record-manager.md](./06-record-manager.md) | 下一节：[07b-record-interaction.md](./08-record-structure-example.md)

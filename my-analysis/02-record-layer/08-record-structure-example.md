@@ -411,4 +411,4 @@ flowchart TD
 | `RmPageHandle` | page_hdr + bitmap + slots 三指针 | 页面访问的"手柄" |
 | `RmScan` | cur_page_handle_ + rid_ | 扫描时的当前位置 |
 
-上一节：[07-record-scan.md](./07-record-scan.md) | 下一节：[09-record-frame-vs-reference.md](./09-record-frame-vs-reference.md)
+上一节：[07b-record-interaction.md](./07-record-scan.md) | 下一节：[09-record-frame-vs-reference.md](./09-record-frame-vs-reference.md)

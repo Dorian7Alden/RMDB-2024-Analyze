@@ -24,7 +24,8 @@
 | 05a | [记录增删改查](./05a-record-crud.md) | get_record、insert、delete、update | **核心** |
 | 05b | [空闲页链表管理](./05b-record-free-list.md) | free page list 的创建与回收 | **核心** |
 | 06 | [记录管理器](./06-record-manager.md) | RmManager 文件生命周期管理 | 了解 |
-| 07 | [记录扫描](./07-record-scan.md) | RmScan 顺序扫描迭代器 | **核心** |
+| 07 | [记录扫描] | RmScan 顺序扫描迭代器 | **核心** |
+| 07b | [组件交互机制](/07b-record-interaction.md) | 各组件间的调用关系、工作流、数据流向 | 理解 |(./07-record-scan.md) | RmScan 顺序扫描迭代器 | **核心** |
 | 08 | [记录层实例串讲](./08-record-structure-example.md) | 用具体实例串联所有数据结构，建立整体认知 | 综合 |
 | 09 | [框架对比分析](./09-record-frame-vs-reference.md) | 框架实现 vs 参考实现的差异与原因 | 理解 |
 | 10 | [记录层总结](./10-record-layer-summary.md) | 各模块框架状态与核心学习点汇总 | 总结 |

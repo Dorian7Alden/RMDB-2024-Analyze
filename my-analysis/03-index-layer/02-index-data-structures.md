@@ -29,18 +29,21 @@ flowchart TD
     end
 
     subgraph L1[" "]
+        direction LR
         style L1 fill:none,stroke:none
         LH["P1 叶头哨兵"] & R["P2 根节点<br/>keys=[40,70]"]
     end
 
     subgraph L2["内部节点层"]
+        direction LR
         style L2 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
         I3["P3<br/>keys=[15,28]"] & I4["P4<br/>keys=[50,62]"] & I5["P5<br/>keys=[80,92]"]
     end
 
     subgraph L3["叶节点层 双向链表"]
+        direction LR
         style L3 fill:#d1fae5,stroke:#10b981,color:#065f46
-        L6["P6<br/>keys=[5,10,15]"] --> L7["P7<br/>keys=[20,24,28]"] --> L8["P8<br/>keys=[32,38]"] --> L9["P9<br/>keys=[40,45,50]"] --> L10["P10<br/>keys=[55,62]"] --> L11["P11<br/>keys=[66,70]"] --> L12["P12<br/>keys=[72,78,80]"] --> L13["P13<br/>keys=[86,92]"] --> L14["P14<br/>keys=[96,99]"]
+        L6["P6<br/>keys=[5,10,15]"] <--> L7["P7<br/>keys=[20,24,28]"] <--> L8["P8<br/>keys=[32,38]"] <--> L9["P9<br/>keys=[40,45,50]"] <--> L10["P10<br/>keys=[55,62]"] <--> L11["P11<br/>keys=[66,70]"] <--> L12["P12<br/>keys=[72,78,80]"] <--> L13["P13<br/>keys=[86,92]"] <--> L14["P14<br/>keys=[96,99]"]
     end
 
     HDR -->|"root_page"| R

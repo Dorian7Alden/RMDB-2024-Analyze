@@ -1,4 +1,4 @@
-# 11. 记录层总结
+# 12. 记录层总结
 
 记录层共 11 个小节，覆盖了表数据文件的组织方式与记录的增删改查完整链路：
 
@@ -72,6 +72,6 @@ flowchart LR
 | 对下 | BufferPoolManager | `fetch_page` / `new_page` / `unpin_page` | `PageId` → `Page*` |
 | 对下 | DiskManager | `read_page` / `write_page` | fd + page_no + data |
 
-上一节：[10-record-frame-vs-reference.md](./10-record-frame-vs-reference.md)
+上一节：[11-record-api-reference.md](./11-record-api-reference.md)
 
 下一章：[第 3 章：索引层](../03-index-layer/README.md)（待编写）

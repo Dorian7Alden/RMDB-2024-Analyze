@@ -78,4 +78,4 @@ flowchart TD
 | `src/index/ix_scan.h` | IxScan：B+ 树范围扫描 |
 | `src/index/ix_scan.cpp` | IxScan 实现 |
 
-下一节：[02-index-data-structures.md](./02-index-data-structures.md)（待编写）
+下一节：[02-index-data-structures.md](./02-index-data-structures.md)

@@ -10,13 +10,13 @@
 class RecScan {
  public:
   virtual ~RecScan() = default;
-  virtual void next() = 0;       // 移动到下一条记录
+  virtual void next() = 0;          // 移动到下一条记录
   virtual bool is_end() const = 0;  // 是否已扫描完所有记录
-  virtual Rid rid() const = 0;   // 获取当前记录的 Rid
+  virtual Rid rid() const = 0;      // 获取当前记录的 Rid
 };
 ```
 
-`RecScan` 定义了一个抽象的扫描器接口，`RmScan` 是它的具体实现（`ix_scan` 也是）。
+`RecScan` 定义了一个抽象的扫描器接口（`Rec` = Record 的缩写）。`RmScan` 是它的具体实现（`ix_scan` 索引扫描也是），它们都是"扫描记录"，只是扫描方式不同。
 
 ## RmScan 的成员
 

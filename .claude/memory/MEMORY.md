@@ -9,7 +9,7 @@
 
 详细规则已迁移到 `.claude/rules/`，由 CLAUDE.md 按场景引用：
 
-- [教程写作规范](../rules/writing.md) — 28 条写作规则，编写或修改 my-analysis/ 文档前读取
+- [教程写作规范](../rules/writing.md) — 31 条写作规则，编写或修改 my-analysis/ 文档前读取
 - [Mermaid 画图规则](../rules/mermaid.md) — 6 条画图规则，涉及 mermaid 图表时读取
 - [Git 提交规则](../rules/git.md) — 提交格式与单一原则，提交前读取
-- [教学方法论](../rules/teaching.md) — 框架对比、概念讲解顺序，讲解时读取
+- [教学方法论](../rules/teaching.md) — 14 条教学规则，涉及教学策略、讲解顺序、框架对比时读取

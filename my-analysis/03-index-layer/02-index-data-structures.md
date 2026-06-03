@@ -56,6 +56,17 @@ flowchart TD
     I5 -->|"rids[1]"| L13
     I5 -->|"rids[2]"| L14
 
+    L6 -->|"next"| L7
+    L7 -->|"next"| L8
+    L8 -->|"next"| L9
+    L9 -->|"next"| L10
+    L10 -->|"next"| L11
+    L11 -->|"next"| L12
+    L12 -->|"next"| L13
+    L13 -->|"next"| L14
+    L14 -.->|"next"| LH
+    LH -.->|"next"| L6
+
     classDef header fill:#fef3c7,stroke:#f59e0b,color:#92400e
     classDef internal fill:#dbeafe,stroke:#3b82f6,color:#1e40af
     classDef leaf fill:#d1fae5,stroke:#10b981,color:#065f46
@@ -80,7 +91,7 @@ flowchart TD
 页面内部（4096 字节）：
 ┌──────────────────┬───────────────────────────┬──────────────────────────┐
 │ IxPageHdr        │ keys[0..btree_order]      │ rids[0..btree_order]     │
-│ parent num_key   │ 键值数组，keys_size 字节    │ 孩子指针数组              │
+│ parent num_key   │ 键值数组，keys_size 字节    │ 孩子指针数组               │
 │ is_leaf          │ col_tot_len × (order+1)   │ sizeof(Rid) × (order+1)  │
 │ prev next        │                           │                          │
 └──────────────────┴───────────────────────────┴──────────────────────────┘

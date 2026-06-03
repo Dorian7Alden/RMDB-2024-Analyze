@@ -45,6 +45,52 @@ flowchart TD
 
 **向上**：为系统管理提供索引创建/删除接口，为执行器提供索引查找和范围扫描接口。
 
+## 与存储层、记录层的协作关系
+
+索引层不是孤立的——它和记录层共享同一套基础设施。
+
+### 相同的搬运工：Page
+
+存储层的 `BufferPoolManager` 不知道也不关心 Page 里存的是什么。
+不管是记录层的 `.db` 文件还是索引层的 `.idx` 文件，数据都以 **Page（4096 字节）** 为单位加载到缓冲池：
+
+```
+磁盘文件            BufferPool          上层解析
+────────────────────────────────────────────────
+student.db  ──→  Page (4096 字节)  ──→  RmPageHandle
+                                          解析为: RmPageHdr + Bitmap + Slots
+
+student.idx ──→  Page (4096 字节)  ──→  IxNodeHandle
+                                          解析为: IxPageHdr + keys[] + rids[]
+```
+
+同一块 4096 字节，两套解读方式。
+
+### 各自的解读器
+
+记录层的 `RmPageHandle` 构造函数把页面切成三段（page_hdr、bitmap、slots），然后通过 `get_slot(slot_no)` 用乘法定位记录。
+
+索引层的 `IxNodeHandle` 构造函数把页面切成三段（page_hdr、keys、rids），然后通过 `get_key(key_idx)` 用乘法定位键。
+
+**相同之处**：都是三段式布局，都是定长元素（记录/键），都用乘法 O(1) 定位。
+
+**不同之处**：记录层需要 Bitmap 标记槽位（因为删除后有空洞），索引层直接用 `num_key` 知道有效键数量（删除靠 memmove 填补）。
+
+### 索引查询的完整路径
+
+一次 `WHERE age = 20` 是怎么执行的：
+
+```
+1. 索引层  IxIndexHandle.get_value(key=20)
+          → B+ 树查找 → 返回 Rid{page_no:3, slot_no:5}
+
+2. 记录层  RmFileHandle.get_record(Rid{3, 5})
+          → 从 .db 文件第 3 页第 5 槽位读取记录 → 返回 RmRecord
+```
+
+索引层返回的是"门牌号"（Rid），记录层根据门牌号取数据。
+这种解耦意味着同一个 Rid 不管是从索引来的、从全表扫描来的、还是从别处来的，记录层都用同一种方式取数据。
+
 ## 输入与输出
 
 | 方向 | 输入 | 输出 | 说明 |

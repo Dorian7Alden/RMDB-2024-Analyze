@@ -116,7 +116,7 @@ keys 和 rids 在创建时就预分配了固定大小（由 `btree_order` 决定
               rids=[page3, page4, page5]
               含义: <30 走 page3, 30~60 走 page4, >60 走 page5
 
-叶节点:   keys[i] = 实际数据的键值
+叶节点:    keys[i] = 实际数据的键值
           rids[i] = 该键对应记录的 Rid (page_no, slot_no)
 
           例: keys=[5, 10, 15]
@@ -229,6 +229,21 @@ class Iid {
 | 指向 | 一条表记录的位置 | 一个键值对在节点中的位置 |
 
 同样都是 `{page_no, slot_no}`，一个定位记录，一个定位键值对——相同的结构，不同的语义。
+
+**Iid 用在哪里？** 主要在范围扫描中：
+
+- `IxIndexHandle::lower_bound(key)` → 返回 `Iid`，表示 >= key 的起始位置
+- `IxIndexHandle::upper_bound(key)` → 返回 `Iid`，表示 > key 的结束位置后一个
+- `IxIndexHandle::leaf_begin()` → 返回 `Iid`，指向第一个叶节点的第 0 个键
+- `IxIndexHandle::leaf_end()` → 返回 `Iid`，指向最后一个叶节点的末尾
+
+`IxScan` 拿着这两个 `Iid`（lower ~ upper）沿叶节点链表遍历：
+
+```
+Iid lower = ih->lower_bound(key_20);   // 从 age>=20 的位置开始
+Iid upper = ih->upper_bound(key_30);   // 到 age>30 的位置结束
+IxScan scan(ih, lower, upper, bpm);   // 在 [lower, upper) 范围扫描
+```
 
 ## 源码对应
 

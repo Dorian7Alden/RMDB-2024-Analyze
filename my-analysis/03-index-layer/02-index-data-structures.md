@@ -7,6 +7,7 @@
 `src/index/ix_defs.h:20-25`
 
 ```cpp
+// src/index/ix_defs.h:20-25
 constexpr int IX_NO_PAGE = -1;          // 无效页面号
 constexpr int IX_FILE_HDR_PAGE = 0;     // 文件头在第 0 页
 constexpr int IX_LEAF_HEADER_PAGE = 1;  // 叶头在第 1 页
@@ -187,6 +188,7 @@ keys 和 rids 在创建时就预分配了固定大小（由 `btree_order` 决定
 `src/index/ix_defs.h:27`
 
 ```cpp
+// src/index/ix_defs.h:27
 class IxFileHdr {
  public:
   page_id_t first_free_page_no_;   // 第一个空闲页面号（已删除的页面可复用）
@@ -235,6 +237,7 @@ class IxFileHdr {
 `src/index/ix_defs.h:140`
 
 ```cpp
+// src/index/ix_defs.h:140
 class IxPageHdr {
  public:
   page_id_t next_free_page_no;  // 未使用（保留字段）
@@ -258,6 +261,7 @@ class IxPageHdr {
 `src/index/ix_defs.h:153`
 
 ```cpp
+// src/index/ix_defs.h:153
 class Iid {
  public:
   int page_no;  // 索引页面号

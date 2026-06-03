@@ -17,65 +17,50 @@ constexpr int IX_MAX_COL_LEN = 512;     // 索引列最大长度
 
 索引文件初始有 3 页：第 0 页文件头、第 1 页叶头（叶节点链表哨兵）、第 2 页根节点。
 
-## 数据结构的分层包含关系
+## 数据结构总览
 
-从外到内看 `.idx` 文件的结构——每一层包含什么：
+从外到内，`.idx` 文件的层级结构：
 
 ```mermaid
-flowchart TD
-    subgraph file["student.idx 索引文件"]
+flowchart LR
+    subgraph file["索引文件 idx"]
         style file fill:#f3f4f6,stroke:#6b7280,color:#374151
-
-        subgraph P0["第 0 页"]
-            style P0 fill:#fef3c7,stroke:#f59e0b,color:#92400e
-            FH["IxFileHdr 文件头<br/>root_page=2<br/>first_leaf=6 last_leaf=14<br/>btree_order=4 col_tot_len=4<br/>num_pages=15"]
-        end
-
-        subgraph P1["第 1 页"]
-            style P1 fill:#e0e0e0,stroke:#9e9e9e,color:#616161
-            LH["叶头哨兵<br/>next_leaf=6 prev_leaf=14"]
-        end
-
-        subgraph pages["第 2~14 页 B+ 树节点"]
-            style pages fill:#d1fae5,stroke:#10b981,color:#065f46
-
-            subgraph node["每个节点页内结构（4096 字节）"]
-                style node fill:#fff,stroke:#333,color:#000
-                direction LR
-                subgraph seg1["IxPageHdr"]
-                    style seg1 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
-                    H["parent<br/>num_key<br/>is_leaf<br/>prev_leaf<br/>next_leaf"]
-                end
-                subgraph seg2["keys 键数组"]
-                    style seg2 fill:#fef3c7,stroke:#f59e0b,color:#92400e
-                    K["keys 键数组<br/>col_tot_len x (order+1) 字节<br/>例: [5, 10, 15, ...]"]
-                end
-                subgraph seg3["rids 孩子指针数组"]
-                    style seg3 fill:#fce4ec,stroke:#e91e63,color:#880e4f
-                    R["rids 指针数组<br/>sizeof(Rid) x (order+1) 字节<br/>例: [{p1,s0}, {p1,s1}, ...]"]
-                end
-                seg1 ~~~ seg2 ~~~ seg3
-            end
-        end
-
-        P0 ~~~ P1 ~~~ pages
+        FH["IxFileHdr<br/>第 0 页<br/>文件级元信息"]
+        P1["Page 1<br/>叶头哨兵"]
+        P2["Page 2<br/>根节点"]
+        PN["Page N<br/>节点页"]
     end
+
+    subgraph page["每个节点页内部"]
+        style page fill:#d1fae5,stroke:#10b981,color:#065f46
+        PH["IxPageHdr<br/>页级元信息"]
+        KEYS["keys 键数组<br/>分隔键或数据键"]
+        RIDS["rids 指针数组<br/>孩子页号或记录Rid"]
+    end
+
+    subgraph pair["键值对"]
+        style pair fill:#fef3c7,stroke:#f59e0b,color:#92400e
+        K["key<br/>索引键值"]
+        R["rid<br/>孩子页号/记录Rid"]
+    end
+
+    P2 --> page
+    K --- R
+    KEYS --- pair
 ```
 
-**分层解读**：
+- 一个索引文件 = `IxFileHdr`（第 0 页）+ 叶头哨兵（第 1 页）+ 根节点（第 2 页）+ 内部节点 + 叶节点
+- 每个节点页 = `IxPageHdr`（页级元信息）+ `keys[]`（键数组）+ `rids[]`（指针数组）
+- 一个键值对 = `key`（索引键值）+ `rid`（内部节点存孩子页号，叶节点存记录 Rid）
 
-- **最外层**：`.idx` 文件，由多个 Page 组成，每个 Page 4096 字节
-- **第 0 页**：`IxFileHdr`，存储 B+ 树全局元信息（根在哪、叶链头尾、阶数等）
-- **第 1 页**：叶头哨兵，叶节点链表的哑元头节点
-- **第 2~14 页**：B+ 树节点，每个节点页内都是三段——`IxPageHdr` + `keys[]` + `rids[]`
-- **节点间关系**：内部节点通过 `rids[]` 指向子节点页面号，叶节点通过 `prev_leaf`/`next_leaf` 串成链表
-
-> 类比记录层：`.idx` 文件的第 0 页也是文件头（`IxFileHdr` vs `RmFileHdr`），后续页也是数据页。
-> 区别在于记录层数据页存的是"记录槽位"，索引层数据页存的是"键值对孩子指针"。
+> **类比记录层**：`.idx` 和 `.db` 结构完全对称。
+> `.db` = `RmFileHdr`(第0页) + 数据页( RmPageHdr + Bitmap + Slots )
+> `.idx` = `IxFileHdr`(第0页) + 节点页( IxPageHdr + keys + rids )
+> 都是"文件头 + 定长元素的数组"，区别在于 Slots 存记录内容，keys/rids 存键值对。
 
 ## B+ 树的逻辑拓扑
 
-上面是物理结构，下面是逻辑结构——各节点如何连接成一棵 B+ 树：
+下面是逻辑结构——节点间如何连接成 B+ 树：
 
 ```mermaid
 flowchart TD

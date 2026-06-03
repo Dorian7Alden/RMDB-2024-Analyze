@@ -84,7 +84,7 @@ RmRecord get_key()                                         // 当前键
 
 ```cpp
 // IxFileHdr  src/index/ix_defs.h:27
-// class IxFileHdr, src/index/ix_defs.h:27
+// src/index/ix_defs.h:27
 class IxFileHdr { first_free_page_no_; num_pages_; root_page_;
   col_num_; col_types_; col_lens_; col_tot_len_;
   btree_order_; keys_size_; first_leaf_; last_leaf_; tot_len_; }

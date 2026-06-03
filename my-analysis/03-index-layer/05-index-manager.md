@@ -7,7 +7,7 @@
 `src/index/ix_manager.h:21`
 
 ```cpp
-// class IxManager, src/index/ix_manager.h:21
+// src/index/ix_manager.h:21
 class IxManager {
   DiskManager* disk_manager_;
   BufferPoolManager* buffer_pool_manager_;

@@ -7,7 +7,7 @@
 `src/index/ix_index_handle.h:60`
 
 ```cpp
-// class IxNodeHandle, src/index/ix_index_handle.h:60
+// src/index/ix_index_handle.h:60
 class IxNodeHandle {
   const IxFileHdr* file_hdr;  // 所属文件的元信息
   Page* page;                 // 缓冲池中的页面

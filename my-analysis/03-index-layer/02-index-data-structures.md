@@ -23,92 +23,48 @@ constexpr int IX_MAX_COL_LEN = 512;     // 索引列最大长度
 
 ```mermaid
 flowchart TD
-    subgraph file["索引文件 student.idx"]
-        style file fill:#f3f4f6,stroke:#6b7280,color:#374151
-        direction TB
+    HDR["P0 文件头 IxFileHdr<br/>root_page=2<br/>first_leaf=6 last_leaf=14<br/>num_pages=15"]
+    LH["P1 叶头哨兵<br/>next_leaf=6 prev_leaf=14"]
+    R["P2 根节点<br/>parent=-1 num_key=2<br/>keys=[40,70]"]
+    I3["P3 内部节点<br/>parent=2 num_key=2<br/>keys=[15,28]"]
+    I4["P4 内部节点<br/>parent=2 num_key=2<br/>keys=[50,62]"]
+    I5["P5 内部节点<br/>parent=2 num_key=2<br/>keys=[80,92]"]
 
-        subgraph P0["第 0 页 IxFileHdr"]
-            style P0 fill:#fef3c7,stroke:#f59e0b,color:#92400e
-            HDR["root_page=2<br/>first_leaf=6 last_leaf=14<br/>num_pages=15<br/>btree_order=4"]
-        end
+    L6["P6 叶<br/>parent=3 keys=[5,10,15]<br/>prev=1 next=7"]
+    L7["P7 叶<br/>parent=3 keys=[20,24,28]<br/>prev=6 next=8"]
+    L8["P8 叶<br/>parent=3 keys=[32,38]<br/>prev=7 next=9"]
+    L9["P9 叶<br/>parent=4 keys=[40,45,50]<br/>prev=8 next=10"]
+    L10["P10 叶<br/>parent=4 keys=[55,62]<br/>prev=9 next=11"]
+    L11["P11 叶<br/>parent=4 keys=[66,70]<br/>prev=10 next=12"]
+    L12["P12 叶<br/>parent=5 keys=[72,78,80]<br/>prev=11 next=13"]
+    L13["P13 叶<br/>parent=5 keys=[86,92]<br/>prev=12 next=14"]
+    L14["P14 叶<br/>parent=5 keys=[96,99]<br/>prev=13 next=1"]
 
-        subgraph P1["第 1 页 叶头 哨兵"]
-            style P1 fill:#e0e0e0,stroke:#9e9e9e,color:#616161
-            LH["next_leaf=6 prev_leaf=14"]
-        end
+    HDR -->|"root_page"| R
+    HDR -->|"first_leaf"| L6
+    HDR -->|"last_leaf"| L14
+    R -->|"rids[0]"| I3
+    R -->|"rids[1]"| I4
+    R -->|"rids[2]"| I5
+    I3 -->|"rids[0]"| L6
+    I3 -->|"rids[1]"| L7
+    I3 -->|"rids[2]"| L8
+    I4 -->|"rids[0]"| L9
+    I4 -->|"rids[1]"| L10
+    I4 -->|"rids[2]"| L11
+    I5 -->|"rids[0]"| L12
+    I5 -->|"rids[1]"| L13
+    I5 -->|"rids[2]"| L14
 
-        subgraph P2["第 2 页 根节点"]
-            style P2 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
-            R["parent=-1 num_key=2<br/>keys=[40, 70]<br/>rids=[3, 4, 5]"]
-        end
+    classDef header fill:#fef3c7,stroke:#f59e0b,color:#92400e
+    classDef internal fill:#dbeafe,stroke:#3b82f6,color:#1e40af
+    classDef leaf fill:#d1fae5,stroke:#10b981,color:#065f46
+    classDef sentinel fill:#e0e0e0,stroke:#9e9e9e,color:#616161
 
-        subgraph P3["第 3 页 内部节点"]
-            style P3 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
-            I3["parent=2 num_key=2<br/>keys=[15, 28]<br/>rids=[6, 7, 8]"]
-        end
-
-        subgraph P4["第 4 页 内部节点"]
-            style P4 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
-            I4["parent=2 num_key=2<br/>keys=[50, 62]<br/>rids=[9,10,11]"]
-        end
-
-        subgraph P5["第 5 页 内部节点"]
-            style P5 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
-            I5["parent=2 num_key=2<br/>keys=[80, 92]<br/>rids=[12,13,14]"]
-        end
-
-        subgraph P6["第 6 页 叶"]
-            style P6 fill:#d1fae5,stroke:#10b981,color:#065f46
-            L6["parent=3 num_key=3<br/>keys=[5,10,15]<br/>rids=[{p,s0},{p,s1},{p,s2}]<br/>prev=1 next=7"]
-
-        subgraph P7["第 7 页 叶"]
-            style P7 fill:#d1fae5,stroke:#10b981,color:#065f46
-            L7["parent=3 num_key=3<br/>keys=[20,24,28]<br/>rids=[{p,s3},{p,s4},{p,s5}]<br/>prev=6 next=8"]
-
-        subgraph P8["第 8 页 叶"]
-            style P8 fill:#d1fae5,stroke:#10b981,color:#065f46
-            L8["parent=3 num_key=2<br/>keys=[32,38]<br/>rids=[{p,s6},{p,s7}]<br/>prev=7 next=9"]
-
-        subgraph P9["第 9 页 叶"]
-            style P9 fill:#d1fae5,stroke:#10b981,color:#065f46
-            L9["parent=4 num_key=3<br/>keys=[40,45,50]<br/>rids=[{p,s8},{p,s9},{p,s10}]<br/>prev=8 next=10"]
-
-        subgraph P10["第 10 页 叶"]
-            style P10 fill:#d1fae5,stroke:#10b981,color:#065f46
-            L10["parent=4 num_key=2<br/>keys=[55,62]<br/>rids=[{p,s11},{p,s12}]<br/>prev=9 next=11"]
-
-        subgraph P11["第 11 页 叶"]
-            style P11 fill:#d1fae5,stroke:#10b981,color:#065f46
-            L11["parent=4 num_key=2<br/>keys=[66,70]<br/>rids=[{p,s13},{p,s14}]<br/>prev=10 next=12"]
-
-        subgraph P12["第 12 页 叶"]
-            style P12 fill:#d1fae5,stroke:#10b981,color:#065f46
-            L12["parent=5 num_key=3<br/>keys=[72,78,80]<br/>rids=[{p,s15},{p,s16},{p,s17}]<br/>prev=11 next=13"]
-
-        subgraph P13["第 13 页 叶"]
-            style P13 fill:#d1fae5,stroke:#10b981,color:#065f46
-            L13["parent=5 num_key=2<br/>keys=[86,92]<br/>rids=[{p,s18},{p,s19}]<br/>prev=12 next=14"]
-
-        subgraph P14["第 14 页 叶"]
-            style P14 fill:#d1fae5,stroke:#10b981,color:#065f46
-            L14["parent=5 num_key=2<br/>keys=[96,99]<br/>rids=[{p,s20},{p,s21}]<br/>prev=13 next=1"]
-    end
-
-    HDR -->|"root_page"| P2
-    HDR -->|"first_leaf"| P6
-    HDR -->|"last_leaf"| P14
-    P2 -->|"rids[0]"| P3
-    P2 -->|"rids[1]"| P4
-    P2 -->|"rids[2]"| P5
-    P3 -->|"rids[0]"| P6
-    P3 -->|"rids[1]"| P7
-    P3 -->|"rids[2]"| P8
-    P4 -->|"rids[0]"| P9
-    P4 -->|"rids[1]"| P10
-    P4 -->|"rids[2]"| P11
-    P5 -->|"rids[0]"| P12
-    P5 -->|"rids[1]"| P13
-    P5 -->|"rids[2]"| P14
+    class HDR header
+    class R,I3,I4,I5 internal
+    class L6,L7,L8,L9,L10,L11,L12,L13,L14 leaf
+    class LH sentinel
 ```
 
 **从上图可以看出**：

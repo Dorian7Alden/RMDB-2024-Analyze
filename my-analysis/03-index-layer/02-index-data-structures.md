@@ -17,6 +17,83 @@ constexpr int IX_MAX_COL_LEN = 512;     // 索引列最大长度
 
 索引文件初始有 3 页：第 0 页文件头、第 1 页叶头（叶节点链表哨兵）、第 2 页根节点。
 
+## B+ 树磁盘存储全景
+
+插入一些数据后，`student.idx` 文件在磁盘上的样子：
+
+```mermaid
+flowchart TD
+    subgraph file["索引文件 student.idx"]
+        style file fill:#f3f4f6,stroke:#6b7280,color:#374151
+        direction TB
+
+        subgraph P0["第 0 页 IxFileHdr"]
+            style P0 fill:#fef3c7,stroke:#f59e0b,color:#92400e
+            HDR["root_page=2<br/>first_leaf=3 last_leaf=6<br/>num_pages=7<br/>btree_order=4"]
+        end
+
+        subgraph P1["第 1 页 叶头 哨兵"]
+            style P1 fill:#e0e0e0,stroke:#9e9e9e,color:#616161
+            LH["next_leaf=3 prev_leaf=6"]
+        end
+
+        subgraph P2["第 2 页 根节点 内部节点"]
+            style P2 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
+            R["parent=-1 num_key=2<br/>keys: [30, 60]<br/>rids: [page3, page4, page5]<br/>孩子: 叶3 内4 内5"]
+        end
+
+        subgraph P4["第 4 页 内部节点"]
+            style P4 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
+            I4["parent=2 num_key=2<br/>keys: [40, 50]<br/>rids: [page6, page7, page8]<br/>孩子: 叶6 叶7 叶8"]
+        end
+
+        subgraph P3["第 3 页 叶节点"]
+            style P3 fill:#d1fae5,stroke:#10b981,color:#065f46
+            L3["parent=2 is_leaf=true<br/>num_key=3<br/>keys: [10,20,30]<br/>rids: [{p1,s0},{p1,s1},{p1,s2}]<br/>prev=1 next=6"]
+        end
+
+        subgraph P6["第 6 页 叶节点"]
+            style P6 fill:#d1fae5,stroke:#10b981,color:#065f46
+            L6["parent=4 is_leaf=true<br/>num_key=2<br/>keys: [40,50]<br/>rids: [{p2,s0},{p2,s1}]<br/>prev=3 next=7"]
+        end
+
+        subgraph P5["第 5 页 叶节点"]
+            style P5 fill:#d1fae5,stroke:#10b981,color:#065f46
+            L5["parent=2 is_leaf=true<br/>num_key=2<br/>keys: [60,70]<br/>rids: [{p3,s0},{p3,s1}]<br/>prev=7 next=1"]
+        end
+    end
+
+    HDR -->|"root_page"| P2
+    HDR -->|"first_leaf"| P3
+    HDR -->|"last_leaf"| P5
+    P2 -->|"rids[0]"| P3
+    P2 -->|"rids[1]"| P4
+    P2 -->|"rids[2]"| P5
+    P4 -->|"rids[0]"| P6
+    P3 -->|"next_leaf"| P6
+    P6 -->|"next_leaf"| P5
+```
+
+**从上图可以看出**：
+- 文件头（第 0 页）通过 `root_page` 指向根节点，通过 `first_leaf`/`last_leaf` 指向叶节点链表的头尾
+- 内部节点（蓝底）存分隔键和孩子指针，不存实际数据
+- 叶节点（绿底）存实际键值和记录 Rid，通过 `prev_leaf`/`next_leaf` 串成双向链表
+- 每个节点的 `parent` 字段指回父节点，根节点的 `parent = -1`
+
+**每个页面内部**都是三段式布局：
+
+```
+页面内部（4096 字节）：
+┌──────────────────┬───────────────────────────┬──────────────────────────┐
+│ IxPageHdr        │ keys[0..btree_order]      │ rids[0..btree_order]     │
+│ parent num_key   │ 键值数组，keys_size 字节    │ 孩子指针数组              │
+│ is_leaf          │ col_tot_len × (order+1)   │ sizeof(Rid) × (order+1)  │
+│ prev next        │                           │                          │
+└──────────────────┴───────────────────────────┴──────────────────────────┘
+```
+
+keys 和 rids 在创建时就预分配了固定大小（由 `btree_order` 决定），不随数据量动态变化。
+
 ## IxFileHdr：索引文件头
 
 存在索引文件的第 0 页，存储 B+ 树的全局元信息。
@@ -89,30 +166,6 @@ class Iid {
 ```
 
 `Iid` 对应记录层的 `Rid`，但 `slot_no` 的含义不同：它是节点内 keys 数组的下标，指向"该键值对在节点中的位置"。
-
-## IxNodeHandle 页面布局
-
-索引页面内部布局比记录层简单——没有 Bitmap，只有 header + keys + rids：
-
-```
-索引页（4096 字节）：
-┌─────────────────┬───────────────────┬───────────────────┐
-│ IxPageHdr       │ Keys 键数组        │ Rids 孩子指针数组   │
-│ sizeof(page_hdr)│ keys_size 字节     │ 剩余空间           │
-└─────────────────┴───────────────────┴───────────────────┘
-```
-
-`IxNodeHandle` 的构造函数（`src/index/ix_index_handle.h:76`）：
-
-```cpp
-IxNodeHandle(const IxFileHdr* file_hdr_, Page* page_) {
-  page_hdr = reinterpret_cast<IxPageHdr*>(page->get_data());
-  keys = page->get_data() + sizeof(IxPageHdr);
-  rids = reinterpret_cast<Rid*>(keys + file_hdr->keys_size_);
-}
-```
-
-keys 数组在索引创建时就预分配了固定大小（`keys_size_`），不像记录层需要 bitmap 标记槽位。因为 B+ 树内部节点通过 `num_key` 就知道有几个键，叶节点同理。
 
 ## 源码对应
 

@@ -255,4 +255,4 @@ IxScan scan(ih, lower, upper, bpm);   // 在 [lower, upper) 范围扫描
 | Iid | `src/index/ix_defs.h` | 153-163 |
 | IxNodeHandle 构造函数 | `src/index/ix_index_handle.h` | 76-81 |
 
-下一节：[03-index-node-handle.md](./03-index-node-handle.md)
+上一节：[01-index-layer-overview.md](./01-index-layer-overview.md) | 下一节：[03-index-node-handle.md](./03-index-node-handle.md)

@@ -33,4 +33,6 @@ IxManager → IxIndexHandle → IxNodeHandle → IxScan
 索引层返回 `Rid`（记录位置），上层用 `Rid` 去记录层取实际数据。
 索引层和记录层通过 `Rid` 解耦——索引只管"定位"，记录层管"取数据"。
 
+上一节：[09-index-api-reference.md](./09-index-api-reference.md)
+
 下一章：[第 4 章：系统管理](../04-system-layer/README.md)（待编写）

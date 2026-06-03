@@ -97,6 +97,37 @@ flowchart TD
 
 keys 和 rids 在创建时就预分配了固定大小（由 `btree_order` 决定），不随数据量动态变化。
 
+### keys 和 rids 分别存什么？
+
+**keys**：键数组。每个元素是 `col_tot_len` 字节的键值。
+
+如果索引建立在 `age` 字段上，那 key 就是一个 int 值（如 20、30、40）。
+如果索引建立在 `(name, age)` 联合字段上，那 key 就是 name+age 拼接起来的字节串。
+
+**rids**：指针数组。每个元素是一个 `Rid{page_no, slot_no}`。
+
+但内部节点和叶节点的 rids 含义**不同**：
+
+```
+内部节点:  keys[i] = 分隔键（用于导航）
+          rids[i] = 孩子节点的页面号 (page_no)
+
+          例: keys=[30, 60]
+              rids=[page3, page4, page5]
+              含义: <30 走 page3, 30~60 走 page4, >60 走 page5
+
+叶节点:   keys[i] = 实际数据的键值
+          rids[i] = 该键对应记录的 Rid (page_no, slot_no)
+
+          例: keys=[5, 10, 15]
+              rids=[{p1,s0}, {p1,s3}, {p2,s1}]
+              含义: age=5 的记录在 p1 页 s0 槽位
+```
+
+> **类比记录层**：叶节点的 `(key, rid)` 就像记录层的 `(slot_no, record)` 映射。
+> 记录层通过 Rid 的 slot_no 定位槽位里的记录内容；
+> 索引层通过 key 定位到 Rid，再拿着 Rid 去记录层取记录内容。
+
 与记录层页面对比：两边都是三段式布局，但内容不同。
 
 ```

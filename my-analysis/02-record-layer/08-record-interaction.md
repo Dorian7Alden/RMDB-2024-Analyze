@@ -91,10 +91,10 @@ SM → RmManager.create_file("student.db", 28)
 
 ```
 执行器 → fh.get_record(Rid{page_no:1, slot_no:0})
-           ├── fetch_page_handle(1) → RmPageHandle
-           ├── Bitmap.is_set(slot=0) → 确认有记录
+           ├── fetch_page_handle(1)    → RmPageHandle
+           ├── Bitmap.is_set(slot=0)   → 确认有记录
            ├── page_handle.get_slot(0) → 定位到槽位地址
-           ├── make_unique<RmRecord> → memcpy 拷贝数据
+           ├── make_unique<RmRecord>   → memcpy 拷贝数据
            └── unpin_page(dirty=false) → 返回 RmRecord
 ```
 

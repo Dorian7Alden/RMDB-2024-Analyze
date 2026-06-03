@@ -335,6 +335,19 @@ void RmFileHandle::update_record(const Rid& rid, char* buf,
 | delete_record | WLatch | reset 0 | -- | 从满变不满就加入 | true |
 | update_record | 无 | 不变 | 不变 | 不变 | true |
 
+> **get_record 和 update_record 不加锁，并发读不会出问题吗？**
+>
+> 记录层的 `WLatch` 只保护**页面内部数据结构**（bitmap、num_records）——这些是 insert 和 delete 会修改的。
+> 对于单纯的读（`get_record`）和定长覆盖写（`update_record`），页面结构不变，读取的是已分配槽位的数据、写入的是已存在的槽位，不需要页级锁。
+>
+> 真正的数据一致性由**上层事务层**保证。
+> 事务层通过锁管理器（LockManager）提供表锁、间隙锁、行级锁，
+> 控制不同事务之间的读写顺序和隔离级别。
+> 记录层只负责"按字节搬运"，并发控制的事交给事务层。
+> 源码中的注释也印证了这一点
+> ——`get_record` 的代码注释写着"读记录会有表锁或间隙锁保护，不需要加锁"，
+> `update_record` 注释写着"不需要加页锁，如果更新同一记录由间隙锁保护"。
+
 ## 源码对应
 
 | 内容 | 文件 | 行号 |

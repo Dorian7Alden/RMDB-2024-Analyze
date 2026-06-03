@@ -228,6 +228,9 @@ class IxFileHdr {
 索引层用链表串联"叶节点"是为了范围扫描时顺序遍历。
 两者都在页头里嵌入链表指针，复用同一个设计模式。
 
+内部节点和叶节点在物理上没有区分——用的是**同一个类 `IxNodeHandle`、同一种页面格式**。
+区别仅在于 `is_leaf` 这个标志位。这和记录层的第 0 页 vs 数据页是同一个思路：一套物理结构，多种逻辑用途，靠标志位区分。
+
 `src/index/ix_defs.h:140`
 
 ```cpp
@@ -236,7 +239,7 @@ class IxPageHdr {
   page_id_t next_free_page_no;  // 未使用（保留字段）
   page_id_t parent;             // 父节点页面号
   int num_key;                  // 当前节点的键值对数量
-  bool is_leaf;                 // 是否为叶节点
+  bool is_leaf;                 // true=叶节点 false=内部节点 ← 唯一区分
   page_id_t prev_leaf;          // 前驱叶节点页面号（仅叶节点有效）
   page_id_t next_leaf;          // 后继叶节点页面号（仅叶节点有效）
 };

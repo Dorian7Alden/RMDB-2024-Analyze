@@ -17,9 +17,65 @@ constexpr int IX_MAX_COL_LEN = 512;     // 索引列最大长度
 
 索引文件初始有 3 页：第 0 页文件头、第 1 页叶头（叶节点链表哨兵）、第 2 页根节点。
 
-## B+ 树磁盘存储全景
+## 数据结构的分层包含关系
 
-插入一些数据后，`student.idx` 文件在磁盘上的样子：
+从外到内看 `.idx` 文件的结构——每一层包含什么：
+
+```mermaid
+flowchart TD
+    subgraph file["student.idx 索引文件"]
+        style file fill:#f3f4f6,stroke:#6b7280,color:#374151
+
+        subgraph P0["第 0 页"]
+            style P0 fill:#fef3c7,stroke:#f59e0b,color:#92400e
+            FH["IxFileHdr 文件头<br/>root_page=2<br/>first_leaf=6 last_leaf=14<br/>btree_order=4 col_tot_len=4<br/>num_pages=15"]
+        end
+
+        subgraph P1["第 1 页"]
+            style P1 fill:#e0e0e0,stroke:#9e9e9e,color:#616161
+            LH["叶头哨兵<br/>next_leaf=6 prev_leaf=14"]
+        end
+
+        subgraph pages["第 2~14 页 B+ 树节点"]
+            style pages fill:#d1fae5,stroke:#10b981,color:#065f46
+
+            subgraph node["每个节点页内结构（4096 字节）"]
+                style node fill:#fff,stroke:#333,color:#000
+                direction LR
+                subgraph seg1["IxPageHdr"]
+                    style seg1 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
+                    H["parent<br/>num_key<br/>is_leaf<br/>prev_leaf<br/>next_leaf"]
+                end
+                subgraph seg2["keys 键数组"]
+                    style seg2 fill:#fef3c7,stroke:#f59e0b,color:#92400e
+                    K["keys 键数组<br/>col_tot_len x (order+1) 字节<br/>例: [5, 10, 15, ...]"]
+                end
+                subgraph seg3["rids 孩子指针数组"]
+                    style seg3 fill:#fce4ec,stroke:#e91e63,color:#880e4f
+                    R["rids 指针数组<br/>sizeof(Rid) x (order+1) 字节<br/>例: [{p1,s0}, {p1,s1}, ...]"]
+                end
+                seg1 ~~~ seg2 ~~~ seg3
+            end
+        end
+
+        P0 ~~~ P1 ~~~ pages
+    end
+```
+
+**分层解读**：
+
+- **最外层**：`.idx` 文件，由多个 Page 组成，每个 Page 4096 字节
+- **第 0 页**：`IxFileHdr`，存储 B+ 树全局元信息（根在哪、叶链头尾、阶数等）
+- **第 1 页**：叶头哨兵，叶节点链表的哑元头节点
+- **第 2~14 页**：B+ 树节点，每个节点页内都是三段——`IxPageHdr` + `keys[]` + `rids[]`
+- **节点间关系**：内部节点通过 `rids[]` 指向子节点页面号，叶节点通过 `prev_leaf`/`next_leaf` 串成链表
+
+> 类比记录层：`.idx` 文件的第 0 页也是文件头（`IxFileHdr` vs `RmFileHdr`），后续页也是数据页。
+> 区别在于记录层数据页存的是"记录槽位"，索引层数据页存的是"键值对孩子指针"。
+
+## B+ 树的逻辑拓扑
+
+上面是物理结构，下面是逻辑结构——各节点如何连接成一棵 B+ 树：
 
 ```mermaid
 flowchart TD
@@ -76,7 +132,7 @@ flowchart TD
 ![B+ Tree](https://gitee.com/Seniorsy/pic-go/raw/master/typora/4535dfgd.png)
 
 
-**从上图可以看出**：
+**从逻辑拓扑图可以看出**：
 - 一棵 3 层的 B+ 树：根（1 个）→ 内部节点（3 个）→ 叶节点（9 个），共 15 页
 - 内部节点（蓝底）只存分隔键和孩子指针，不存实际数据
 - 叶节点（绿底）存实际键值和记录 Rid，所有叶节点通过 `prev_leaf`/`next_leaf` 串成一条双向链表

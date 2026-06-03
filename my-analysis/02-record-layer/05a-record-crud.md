@@ -221,7 +221,7 @@ flowchart TD
 
 **关键细节**：
 
-1. `create_page_handle()` 返回一个有空闲空间的页面——可能是现有的空闲页面，也可能是新创建的。具体逻辑在 [05b 空闲页链表管理](./05b-record-free-list.md)。
+1. `create_page_handle()` 返回一个有空闲空间的页面——可能是现有的空闲页面，也可能是新创建的。具体逻辑在 [05b-record-free-list.md](./05b-record-free-list.md)。
 2. `WLatch()` 加写锁保护并发安全——防止两个线程同时插入到同一槽位。
 3. `first_bit(false, ...)` 找第一个值为 0 的位（空闲槽位）。
 4. 插入后如果页面满了（`num_records == num_records_per_page`），把它从空闲链表移除。

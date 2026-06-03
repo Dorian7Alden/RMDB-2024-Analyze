@@ -91,7 +91,7 @@ struct RmPageHdr {
 
 `next_free_page_no` 和 `first_free_page_no` 配合使用，构成一个**单向链表**，串联所有还有空位的页面。
 
-> **`next_free_page_no` 指向的页面一定有空位吗？** 是的。链表里的页面只在"还有空位"时才留在链表中——一旦某个页面插满（`num_records == num_records_per_page`），它会被移出链表；当删除记录让满页重新出现空位时，它又被加回链表。所以链表中的每个页面**至少有一个空闲槽位**，"free" 名副其实。这个链表的具体运作方式会在 [05b 空闲页链表管理](./05b-record-free-list.md) 详细讲解。
+> **`next_free_page_no` 指向的页面一定有空位吗？** 是的。链表里的页面只在"还有空位"时才留在链表中——一旦某个页面插满（`num_records == num_records_per_page`），它会被移出链表；当删除记录让满页重新出现空位时，它又被加回链表。所以链表中的每个页面**至少有一个空闲槽位**，"free" 名副其实。这个链表的具体运作方式会在 [05b-record-free-list.md](./05b-record-free-list.md) 详细讲解。
 
 ## RmFileHdr：文件级元信息
 
@@ -146,7 +146,7 @@ flowchart TD
     RID -->|"标识"| R
 ```
 
-从第 1 章的知识可知，`PAGE_SIZE = 4096` 字节（4KB）。假设 `record_size = 32` 字节，那么一页大约能存 100 多条记录。具体能存几条由 `num_records_per_page` 的计算公式决定，会在 [03 数据页内部布局](./03-record-page-layout.md) 中详细推导。
+从第 1 章的知识可知，`PAGE_SIZE = 4096` 字节（4KB）。假设 `record_size = 32` 字节，那么一页大约能存 100 多条记录。具体能存几条由 `num_records_per_page` 的计算公式决定，会在 [03-record-page-layout.md](./03-record-page-layout.md) 中详细推导。
 
 ## 源码对应
 

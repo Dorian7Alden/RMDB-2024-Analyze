@@ -84,7 +84,7 @@ void create_file(const std::string& filename, int record_size) {
 
 1. 检查 `record_size` 合法性（1 ~ 512 字节）
 2. 通过 `DiskManager` 创建文件并打开
-3. 计算 `num_records_per_page` 和 `bitmap_size`（公式见 [03 数据页内部布局](./03-record-page-layout.md)）
+3. 计算 `num_records_per_page` 和 `bitmap_size`（公式见 [03-record-page-layout.md](./03-record-page-layout.md)）
 4. 把 `RmFileHdr` 直接写入第 0 页（`RM_FILE_HDR_PAGE`）
 5. 关闭文件
 

@@ -148,7 +148,13 @@ while (!scan.is_end()) {
 ```
 
 > **语法说明**：`RmScan scan(file_handle.get())` 是 C++ 在**栈上直接构造对象**的写法（等价于 `new` 但不需要手动 `delete`，对象离开作用域自动销毁）。`.get()` 是 `unique_ptr` 的方法，返回它管理的裸指针，**所有权仍归 unique_ptr**，`RmScan` 不会销毁传入的 `RmFileHandle`。
-```
+>
+> **`unique_ptr` 是什么？** C++ 的**独占所有权智能指针**，替代手动 `new`/`delete`。
+> 同一时刻只有一个 `unique_ptr` 拥有某个对象——不能拷贝，只能转移所有权（`std::move`）。
+> 离开作用域自动释放，零额外开销（和裸指针一样大）。RMDB 中 `open_file` 返回 `unique_ptr<RmFileHandle>`，`get_record` 返回 `unique_ptr<RmRecord>`，都是明确独占的场景。
+>
+> **跟 `shared_ptr` 的区别**：`shared_ptr` 是共享所有权，多个指针可以指向同一对象，内部维护引用计数，最后一个释放时才销毁。RMDB 中对象的拥有关系很明确，不需要共享，所以用更轻量的 `unique_ptr`。
+
 
 ## 框架与参考实现的差异
 

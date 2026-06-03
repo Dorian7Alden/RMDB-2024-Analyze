@@ -49,55 +49,92 @@ B+ 树的核心规则：**数据只存在叶节点，内部节点只存"路标"*
 
 ## B+ 树的结构
 
-一个 3 层的 B+ 树长这样：
+下面是 RMDB 中一棵 3 层 B+ 树的逻辑拓扑——节点间如何连接：
 
 ```mermaid
 flowchart TD
-    subgraph L0["根节点"]
-        style L0 fill:#fef3c7,stroke:#f59e0b,color:#92400e
-        R["keys = [40, 70]<br/>孩子指针 = [p3, p5, p9]"]
+    subgraph L0[" "]
+        style L0 fill:none,stroke:none
+        HDR["P0 文件头 IxFileHdr<br/>root_page=2<br/>first_leaf=6 last_leaf=14<br/>num_pages=15"]
     end
 
-    subgraph L1["内部节点"]
+    subgraph L1[" "]
         direction LR
-        style L1 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
-        I1["keys=[15,28]<br/>孩子=[p10,p13,p16]"]
-        I2["keys=[50,62]<br/>孩子=[p20,p23,p26]"]
-        I3["keys=[80,92]<br/>孩子=[p30,p33,p36]"]
+        style L1 fill:none,stroke:none
+        LH["P1 叶头哨兵"] & R["P2 根节点<br/>keys=[40,70]"]
     end
 
-    subgraph L2["叶节点 双向链表"]
+    subgraph L2["内部节点层"]
         direction LR
-        style L2 fill:#d1fae5,stroke:#10b981,color:#065f46
-        L1N["keys=[5,10,15]<br/>rids 指向实际记录"] <---> L2N["keys=[20,24,28]<br/>rids 指向实际记录"] <---> L3N["keys=[32,38]<br/>rids 指向实际记录"] <---> L4N["keys=[40,45,50]<br/>rids 指向实际记录"] <---> L5N["keys=[55,62]<br/>rids 指向实际记录"] <---> L6N["keys=[66,70]<br/>rids 指向实际记录"] <---> L7N["keys=[72,78,80]<br/>rids 指向实际记录"] <---> L8N["keys=[86,92]<br/>rids 指向实际记录"] <---> L9N["keys=[96,99]<br/>rids 指向实际记录"]
+        style L2 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
+        I3["P3<br/>keys=[15,28]"] & I4["P4<br/>keys=[50,62]"] & I5["P5<br/>keys=[80,92]"]
     end
 
-    R --> I1
-    R --> I2
-    R --> I3
-    I1 --> L1N
-    I1 --> L2N
-    I1 --> L3N
-    I2 --> L4N
-    I2 --> L5N
-    I2 --> L6N
-    I3 --> L7N
-    I3 --> L8N
-    I3 --> L9N
+    subgraph L3["叶节点层 双向链表"]
+        direction LR
+        style L3 fill:#d1fae5,stroke:#10b981,color:#065f46
+        L6["P6<br/>keys=[5,10,15]"] <--> L7["P7<br/>keys=[20,24,28]"] <--> L8["P8<br/>keys=[32,38]"] <--> L9["P9<br/>keys=[40,45,50]"] <--> L10["P10<br/>keys=[55,62]"] <--> L11["P11<br/>keys=[66,70]"] <--> L12["P12<br/>keys=[72,78,80]"] <--> L13["P13<br/>keys=[86,92]"] <--> L14["P14<br/>keys=[96,99]"]
+    end
 
-    classDef root fill:#fef3c7,stroke:#f59e0b,color:#92400e
+    HDR -->|"root_page"| R
+    HDR -->|"first_leaf"| L6
+    HDR -->|"last_leaf"| L14
+    R -->|"rids[0]"| I3
+    R -->|"rids[1]"| I4
+    R -->|"rids[2]"| I5
+    I3 -->|"rids[0]"| L6
+    I3 -->|"rids[1]"| L7
+    I3 -->|"rids[2]"| L8
+    I4 -->|"rids[0]"| L9
+    I4 -->|"rids[1]"| L10
+    I4 -->|"rids[2]"| L11
+    I5 -->|"rids[0]"| L12
+    I5 -->|"rids[1]"| L13
+    I5 -->|"rids[2]"| L14
+
+    classDef header fill:#fef3c7,stroke:#f59e0b,color:#92400e
     classDef internal fill:#dbeafe,stroke:#3b82f6,color:#1e40af
     classDef leaf fill:#d1fae5,stroke:#10b981,color:#065f46
-    class R root
-    class I1,I2,I3 internal
-    class L1N,L2N,L3N,L4N,L5N,L6N,L7N,L8N,L9N leaf
+    classDef sentinel fill:#e0e0e0,stroke:#9e9e9e,color:#616161
+    class HDR header
+    class R,I3,I4,I5 internal
+    class L6,L7,L8,L9,L10,L11,L12,L13,L14 leaf
+    class LH sentinel
 ```
 
-从图可以看出 B+ 树的三个关键特征：
 
-**特征一：数据只在叶节点**。内部节点（蓝底）的键是"分隔键"，只用于导航。比如根节点的 `[40, 70]` 表示：< 40 走第一个孩子，40~70 走第二个，> 70 走第三个。实际数据全在叶节点（绿底）。
+![B+ Tree](https://gitee.com/Seniorsy/pic-go/raw/master/typora/4535dfgd.png)
 
-**特征二：叶节点串成链表**。所有叶节点通过指针前后相连，形成有序的双向链表。想做范围扫描（如 `WHERE age BETWEEN 20 AND 30`），找到起始位置后沿链表走就行，不需要回溯内部节点。
+
+**从逻辑拓扑图可以看出**：
+- 一棵 3 层的 B+ 树：根（1 个）→ 内部节点（3 个）→ 叶节点（9 个），共 15 页
+- 内部节点（蓝底）只存分隔键和孩子指针，不存实际数据
+- 叶节点（绿底）存实际键和记录 Rid，所有叶节点通过 `prev_leaf`/`next_leaf` 串成双向链表
+- 范围扫描只需沿链表顺序遍历，不需要回溯内部节点
+- 每个节点的 `parent` 字段指回父节点，根节点的 `parent = -1`
+- 文件头（黄底）记录整棵树的全局信息：`root_page` 指向根节点，`first_leaf`/`last_leaf` 指向叶节点链表首尾
+- 第 1 页（灰底哨兵）不出现在查找路径中，它是叶节点链表的逻辑哨兵，`first_leaf` 指向的才是第一个真正的叶节点
+
+**每个页面内部**都是三段式布局：
+
+```
+页面内部（4096 字节）：
+┌──────────────────┬───────────────────────────┬──────────────────────────┐
+│ IxPageHdr        │ keys[0..btree_order]      │ rids[0..btree_order]     │
+|                  | 键数组，keys_size 字节    | 孩子指针数组               │
+│ parent num_key   │                           │                          │
+│ is_leaf          │ col_tot_len x (order+1)   │ sizeof(Rid) x (order+1)  │
+│ prev next        │                           │                          │
+└──────────────────┴───────────────────────────┴──────────────────────────┘
+```
+
+keys 和 rids 在创建时就预分配了固定大小（由 `btree_order` 决定），不随数据量动态变化。
+
+**三个关键特征**：
+
+**特征一：数据只在叶节点**。内部节点（蓝底）的键是"分隔键"，只用于导航。比如根节点的 `[40, 70]` 表示：< 40 走 rids[0]，40~70 走 rids[1]，> 70 走 rids[2]。实际数据全在叶节点（绿底）。
+
+**特征二：叶节点串成链表**。所有叶节点通过 `prev_leaf`/`next_leaf` 形成有序双向链表。想做范围扫描（如 `WHERE age BETWEEN 20 AND 30`），找到起始位置后沿链表走就行，不需要回溯内部节点。
 
 **特征三：绝对平衡**。不管插入还是删除，B+ 树始终保持所有叶节点在同一层。树的高度只会因为根节点分裂而整体增加一层。
 

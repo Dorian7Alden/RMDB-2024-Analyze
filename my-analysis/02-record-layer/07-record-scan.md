@@ -136,14 +136,18 @@ std::unique_ptr<RmRecord> RmScan::get_record() {
 
 ```cpp
 auto file_handle = rm_manager->open_file("student.db");
-RmScan scan(file_handle.get());
+RmScan scan(file_handle.get());       // 栈上直接构造，传入 RmFileHandle 裸指针
+                                       // .get() 返回 unique_ptr 管理的裸指针，所有权不转移
 
 while (!scan.is_end()) {
   auto rid = scan.rid();
   auto record = scan.get_record();
   // 处理 record->data 中的字节数据
   scan.next();
-}
+}                                      // scan 离开作用域，自动销毁
+```
+
+> **语法说明**：`RmScan scan(file_handle.get())` 是 C++ 在**栈上直接构造对象**的写法（等价于 `new` 但不需要手动 `delete`，对象离开作用域自动销毁）。`.get()` 是 `unique_ptr` 的方法，返回它管理的裸指针，**所有权仍归 unique_ptr**，`RmScan` 不会销毁传入的 `RmFileHandle`。
 ```
 
 ## 框架与参考实现的差异

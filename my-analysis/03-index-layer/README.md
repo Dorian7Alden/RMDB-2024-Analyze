@@ -18,7 +18,8 @@
 
 | 序号 | 文档 | 内容 | 类型 |
 |------|------|------|------|
-| 01 | [索引层概述](./01-index-layer-overview.md) | 索引层是什么、架构位置、B+ 树简介 | 理解 |
+| 01 | [索引层概述](./01-index-layer-overview.md) | 索引层是什么、架构位置 | 理解 |
+| 01b | [B+ 树基础](./01b-btree-basics.md) | B+ 树概念、结构、操作概览、为何用于数据库 | 理解 |
 | 02 | [数据结构](./02-index-data-structures.md) | IxFileHdr、IxPageHdr、Iid、页面布局 | 掌握 |
 | 03 | [IxNodeHandle](./03-index-node-handle.md) | 节点级读写、查找、isSafe | 掌握 |
 | 04a | [B+ 树查找](./04a-btree-search.md) | find_leaf_page、internal_lookup、leaf_lookup | **核心** |

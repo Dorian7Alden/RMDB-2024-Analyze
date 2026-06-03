@@ -124,4 +124,4 @@ student.idx ──→  Page (4096 字节)  ──→  IxNodeHandle
 | `src/index/ix_scan.h` | IxScan：B+ 树范围扫描 |
 | `src/index/ix_scan.cpp` | IxScan 实现 |
 
-下一节：[02-index-data-structures.md](./02-index-data-structures.md)
+下一节：[01b-btree-basics.md](./01b-btree-basics.md)

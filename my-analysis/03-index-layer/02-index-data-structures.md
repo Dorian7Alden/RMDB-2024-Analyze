@@ -1,6 +1,6 @@
 # 02. 索引层数据结构
 
-索引层用 B+ 树组织索引键值。先看数据结构——文件存什么、页面存什么、如何定位。
+索引层用 B+ 树组织索引键。先看数据结构——文件存什么、页面存什么、如何定位。
 
 ## 常量
 
@@ -40,7 +40,7 @@ flowchart LR
 
     subgraph pair["键值对"]
         style pair fill:#fef3c7,stroke:#f59e0b,color:#92400e
-        K["key<br/>索引键值"]
+        K["key<br/>索引键"]
         R["rid<br/>孩子页号/记录Rid"]
     end
 
@@ -51,7 +51,7 @@ flowchart LR
 
 - 一个索引文件 = `IxFileHdr`（第 0 页）+ 叶头哨兵（第 1 页）+ 根节点（第 2 页）+ 内部节点 + 叶节点
 - 每个节点页 = `IxPageHdr`（页级元信息）+ `keys[]`（键数组）+ `rids[]`（指针数组）
-- 一个键值对 = `key`（索引键值）+ `rid`（内部节点存孩子页号，叶节点存记录 Rid）
+- 一个键值对 = `key`（索引键）+ `rid`（内部节点存孩子页号，叶节点存记录 Rid）
 
 > **类比记录层**：`.idx` 和 `.db` 结构完全对称。
 > `.db` = `RmFileHdr`(第0页) + 数据页( RmPageHdr + Bitmap + Slots )
@@ -120,7 +120,7 @@ flowchart TD
 **从逻辑拓扑图可以看出**：
 - 一棵 3 层的 B+ 树：根（1 个）→ 内部节点（3 个）→ 叶节点（9 个），共 15 页
 - 内部节点（蓝底）只存分隔键和孩子指针，不存实际数据
-- 叶节点（绿底）存实际键值和记录 Rid，所有叶节点通过 `prev_leaf`/`next_leaf` 串成一条双向链表
+- 叶节点（绿底）存实际键和记录 Rid，所有叶节点通过 `prev_leaf`/`next_leaf` 串成一条双向链表
 - 范围扫描只需沿链表顺序遍历，不需要回溯内部节点
 - 每个节点的 `parent` 字段指回父节点，根节点的 `parent = -1`
 
@@ -130,7 +130,8 @@ flowchart TD
 页面内部（4096 字节）：
 ┌──────────────────┬───────────────────────────┬──────────────────────────┐
 │ IxPageHdr        │ keys[0..btree_order]      │ rids[0..btree_order]     │
-│ parent num_key   │ 键值数组，keys_size 字节    │ 孩子指针数组               │
+|                  | 键数组，keys_size 字节    | 孩子指针数组               |
+│ parent num_key   │                           │                          │
 │ is_leaf          │ col_tot_len × (order+1)   │ sizeof(Rid) × (order+1)  │
 │ prev next        │                           │                          │
 └──────────────────┴───────────────────────────┴──────────────────────────┘
@@ -140,7 +141,7 @@ keys 和 rids 在创建时就预分配了固定大小（由 `btree_order` 决定
 
 ### keys 和 rids 分别存什么？
 
-**keys**：键数组。每个元素是 `col_tot_len` 字节的键值。
+**keys**：键数组。每个元素是 `col_tot_len` 字节的键数据。
 
 如果索引建立在 `age` 字段上，那 key 就是一个 int 值（如 20、30、40）。
 如果索引建立在 `(name, age)` 联合字段上，那 key 就是 name+age 拼接起来的字节串。
@@ -157,7 +158,7 @@ keys 和 rids 在创建时就预分配了固定大小（由 `btree_order` 决定
               rids=[page3, page4, page5]
               含义: <30 走 page3, 30~60 走 page4, >60 走 page5
 
-叶节点:    keys[i] = 实际数据的键值
+叶节点:    keys[i] = 实际数据的键
           rids[i] = 该键对应记录的 Rid (page_no, slot_no)
 
           例: keys=[5, 10, 15]

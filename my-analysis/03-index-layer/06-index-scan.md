@@ -26,7 +26,7 @@ class IxScan : public RecScan {
   void next();                     // 移动到下一个 Rid
   bool is_end();                   // iid_ == end_
   Rid rid();                       // 返回当前 Rid
-  RmRecord get_key();              // 获取当前记录的实际键值
+  RmRecord get_key();              // 获取当前记录的实际键
 };
 ```
 

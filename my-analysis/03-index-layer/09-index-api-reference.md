@@ -76,7 +76,7 @@ bool isSafe(operation)                                    // 锁缩放判断
 void next()                                                // 移动到下一个记录
 bool is_end()                                              // 到达 end
 Rid rid()                                                  // 当前 Rid
-RmRecord get_key()                                         // 当前键值
+RmRecord get_key()                                         // 当前键
 ```
 
 ## 数据结构

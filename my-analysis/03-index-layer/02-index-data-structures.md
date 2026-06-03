@@ -72,6 +72,10 @@ flowchart TD
     class LH sentinel
 ```
 
+
+![B+ Tree](https://gitee.com/Seniorsy/pic-go/raw/master/typora/4535dfgd.png)
+
+
 **从上图可以看出**：
 - 一棵 3 层的 B+ 树：根（1 个）→ 内部节点（3 个）→ 叶节点（9 个），共 15 页
 - 内部节点（蓝底）只存分隔键和孩子指针，不存实际数据

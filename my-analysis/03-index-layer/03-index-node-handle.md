@@ -7,7 +7,7 @@
 `src/index/ix_index_handle.h:60`
 
 ```cpp
-// src/index/ix_index_handle.h:60
+// class IxNodeHandle, src/index/ix_index_handle.h:60
 class IxNodeHandle {
   const IxFileHdr* file_hdr;  // 所属文件的元信息
   Page* page;                 // 缓冲池中的页面
@@ -22,7 +22,7 @@ class IxNodeHandle {
 ## 基本信息
 
 ```cpp
-// src/index/ix_index_handle.h:85
+// IxNodeHandle::get_size, src/index/ix_index_handle.h:85
 int get_size()             // 当前节点键数量（从 page_hdr->num_key 读取）
 void set_size(int size)    // 设置键数量
 int get_max_size()         // 最大容量 = btree_order + 1
@@ -36,7 +36,7 @@ bool isFull()              // 是否已满（num_key == get_max_size()）
 ## 键和 Rid 的读写
 
 ```cpp
-// src/index/ix_index_handle.h:128
+// IxNodeHandle::get_key, src/index/ix_index_handle.h:128
 char* get_key(int key_idx)   // 获取第 key_idx 个键的指针
 void set_key(int key_idx, const char* key)  // 写入键（memcpy）
 char* get_last_key()         // 获取最后一个键的指针
@@ -53,7 +53,7 @@ Rid* get_last_rid()          // 获取最后一个孩子 Rid 的指针
 ## 页面级导航
 
 ```cpp
-// src/index/ix_index_handle.h:98
+// IxNodeHandle::get_page_no, src/index/ix_index_handle.h:98
 page_id_t get_page_no()        // 当前节点所在页面号
 PageId get_page_id()           // 当前节点 PageId（fd + page_no）
 page_id_t get_next_leaf()      // 下一个叶节点页面号（链式遍历用）
@@ -64,7 +64,7 @@ page_id_t get_parent_page_no() // 父节点页面号
 ## 节点类型判断
 
 ```cpp
-// src/index/ix_index_handle.h:108
+// IxNodeHandle::is_leaf_page, src/index/ix_index_handle.h:108
 bool is_leaf_page()       // 是否为叶节点（page_hdr->is_leaf）
 bool is_internal_page()   // 是否为内部节点（!is_leaf）
 bool is_root_page()       // 是否为根节点（parent == IX_NO_PAGE）
@@ -75,7 +75,7 @@ bool is_root_page()       // 是否为根节点（parent == IX_NO_PAGE）
 在节点内查找目标 key 的位置。框架中为空，需自行实现。
 
 ```cpp
-// src/index/ix_index_handle.cpp:48
+// IxNodeHandle::lower_bound, src/index/ix_index_handle.cpp:48
 int lower_bound(const char* target)  // 找第一个 >= target 的 key_idx
 int upper_bound(const char* target)  // 找第一个 > target 的 key_idx
 ```
@@ -87,7 +87,7 @@ int upper_bound(const char* target)  // 找第一个 > target 的 key_idx
 在节点内操作键值对。框架中为空，需自行实现。
 
 ```cpp
-// src/index/ix_index_handle.cpp:142
+// IxNodeHandle::insert_pairs, src/index/ix_index_handle.cpp:142
 void insert_pairs(int pos, const char* key, const Rid* rid, int n)
 // 在 pos 位置插入 n 个连续键值对，需 memmove 腾出空间
 
@@ -107,7 +107,7 @@ std::pair<int, int> remove(const char* key)
 ## isSafe：锁缩放的判断
 
 ```cpp
-// src/index/ix_index_handle.cpp:26
+// IxNodeHandle::isSafe, src/index/ix_index_handle.cpp:26
 bool isSafe(Operation operation) {
   if (!is_root_page() && operation == INSERT)
     return get_size() + 1 < get_max_size();  // 插入后不满 → 安全

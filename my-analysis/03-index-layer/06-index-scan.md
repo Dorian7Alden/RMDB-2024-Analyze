@@ -17,7 +17,7 @@ first_leaf → [叶1] ⇄ [叶2] ⇄ [叶3] ⇄ ... ← last_leaf
 `src/index/ix_scan.h:21`
 
 ```cpp
-// src/index/ix_scan.h:21
+// class IxScan, src/index/ix_scan.h:21
 class IxScan : public RecScan {
   const IxIndexHandle* ih_;        // B+ 树句柄
   Iid iid_;                        // 当前位置

@@ -25,7 +25,7 @@ constexpr int IX_MAX_COL_LEN = 512;     // 索引列最大长度
 flowchart TD
     subgraph L0[" "]
         style L0 fill:none,stroke:none
-        HDR["P0 文件头 IxFileHdr<br/>root_page=2<br/>first_leaf=6 last_leaf=11<br/>num_pages=12"]
+        HDR["P0 文件头 IxFileHdr<br/>root_page=2<br/>first_leaf=6 last_leaf=14<br/>num_pages=15"]
     end
 
     subgraph L1[" "]
@@ -37,27 +37,30 @@ flowchart TD
     subgraph L2["内部节点层"]
         direction LR
         style L2 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
-        I3["P3 内<br/>keys=[15,28]"] & I4["P4 内<br/>keys=[50,62]"] & I5["P5 内<br/>keys=[80,92]"]
+        I3["P3<br/>keys=[15,28]"] & I4["P4<br/>keys=[50,62]"] & I5["P5<br/>keys=[80,92]"]
     end
 
     subgraph L3["叶节点层 双向链表"]
         direction LR
         style L3 fill:#d1fae5,stroke:#10b981,color:#065f46
-        L6["P6 叶<br/>keys=[5,15]"] <--> L7["P7 叶<br/>keys=[20,28]"] <--> L8["P8 叶<br/>keys=[40,50]"] <--> L9["P9 叶<br/>keys=[55,62]"] <--> L10["P10 叶<br/>keys=[72,80]"] <--> L11["P11 叶<br/>keys=[86,92]"]
+        L6["P6<br/>keys=[5,10,15]"] <--> L7["P7<br/>keys=[20,24,28]"] <--> L8["P8<br/>keys=[32,38]"] <--> L9["P9<br/>keys=[40,45,50]"] <--> L10["P10<br/>keys=[55,62]"] <--> L11["P11<br/>keys=[66,70]"] <--> L12["P12<br/>keys=[72,78,80]"] <--> L13["P13<br/>keys=[86,92]"] <--> L14["P14<br/>keys=[96,99]"]
     end
 
     HDR -->|"root_page"| R
     HDR -->|"first_leaf"| L6
-    HDR -->|"last_leaf"| L11
+    HDR -->|"last_leaf"| L14
     R -->|"rids[0]"| I3
     R -->|"rids[1]"| I4
     R -->|"rids[2]"| I5
     I3 -->|"rids[0]"| L6
     I3 -->|"rids[1]"| L7
-    I4 -->|"rids[0]"| L8
-    I4 -->|"rids[1]"| L9
-    I5 -->|"rids[0]"| L10
-    I5 -->|"rids[1]"| L11
+    I3 -->|"rids[2]"| L8
+    I4 -->|"rids[0]"| L9
+    I4 -->|"rids[1]"| L10
+    I4 -->|"rids[2]"| L11
+    I5 -->|"rids[0]"| L12
+    I5 -->|"rids[1]"| L13
+    I5 -->|"rids[2]"| L14
 
     classDef header fill:#fef3c7,stroke:#f59e0b,color:#92400e
     classDef internal fill:#dbeafe,stroke:#3b82f6,color:#1e40af
@@ -65,12 +68,12 @@ flowchart TD
     classDef sentinel fill:#e0e0e0,stroke:#9e9e9e,color:#616161
     class HDR header
     class R,I3,I4,I5 internal
-    class L6,L7,L8,L9,L10,L11 leaf
+    class L6,L7,L8,L9,L10,L11,L12,L13,L14 leaf
     class LH sentinel
 ```
 
 **从上图可以看出**：
-- 一棵 3 层的 B+ 树：根（1 个）→ 内部节点（3 个）→ 叶节点（6 个），共 12 页
+- 一棵 3 层的 B+ 树：根（1 个）→ 内部节点（3 个）→ 叶节点（9 个），共 15 页
 - 内部节点（蓝底）只存分隔键和孩子指针，不存实际数据
 - 叶节点（绿底）存实际键值和记录 Rid，所有叶节点通过 `prev_leaf`/`next_leaf` 串成一条双向链表
 - 范围扫描只需沿链表顺序遍历，不需要回溯内部节点

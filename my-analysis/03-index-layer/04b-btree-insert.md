@@ -28,8 +28,6 @@ flowchart TD
 
 **实现**：核心是 `memmove` 腾出空间——把 pos 后面的元素右移 n 位，再把新数据 `memcpy` 填入空位。
 
-**源码**：`src/index/ix_index_handle.cpp:142`（参考实现）
-
 ```
 插入前: [A, B, D, E, _, _]  pos=2, n=1
          0  1  2  3  4  5

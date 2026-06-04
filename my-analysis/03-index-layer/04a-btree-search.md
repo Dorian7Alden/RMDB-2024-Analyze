@@ -47,8 +47,6 @@ flowchart TB
 
 **含义**：B+ 树所有查找和排序的基础——比较两个键的大小。支持 INT、FLOAT、STRING 三种类型，多字段联合索引时逐字段比较。
 
-**源码**：`src/index/ix_index_handle.h:28-45`
-
 ```cpp
 // 单字段比较
 // ix_compare, src/index/ix_index_handle.h:28
@@ -109,8 +107,6 @@ flowchart TD
 
 **场景**：由 `find_leaf_page` 在逐层向下遍历时调用（`src/index/ix_index_handle.cpp:296`）。
 
-**源码**：`src/index/ix_index_handle.cpp:119`（参考实现）
-
 ```cpp
 // IxNodeHandle::internal_lookup, src/index/ix_index_handle.cpp:119
 page_id_t IxNodeHandle::internal_lookup(const char* key) {
@@ -125,8 +121,6 @@ page_id_t IxNodeHandle::internal_lookup(const char* key) {
 **含义**：在叶节点中精确查找目标 key，找到则返回对应的记录 Rid（传出参数），找不到返回 false。
 
 **实现**：`lower_bound` 定位第一个 ≥ key 的位置 → 越界或不相等则不存在 → 相等则返回该位置的 Rid。
-
-**源码**：`src/index/ix_index_handle.cpp:100`（参考实现）
 
 ```cpp
 // IxNodeHandle::leaf_lookup, src/index/ix_index_handle.cpp:100

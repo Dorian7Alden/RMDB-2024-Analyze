@@ -30,12 +30,12 @@ flowchart TD
 
 ```
 插入前: [A, B, D, E, _, _]  pos=2, n=1
-         0  1  2  3  4  5
+        0  1  2  3  4  5
 
 memmove(pos+n, pos, count-pos): 将 [D, E] 右移一位
 插入后: [A, B, C, D, E, _]
-         0  1  2  3  4  5
-         插入 ↑ 插入C
+        0  1  2  3  4  5
+              ↑ 插入C
 ```
 
 ```cpp
@@ -64,12 +64,31 @@ void IxNodeHandle::insert_pairs(int pos, const char* key, const Rid* rid, int n)
 
 **源码**：`src/index/ix_index_handle.cpp:358`（参考实现）
 
-**示例**：
+**示例**（假设 max_size=6，split_point = min_size = 3）：
 
-```
-分裂前 node: [A, B, C, D, E, F]  假设 max_size=6
-                        ↓ split_point = min_size = 3
-分裂后 node: [A, B, C]            new_node: [D, E, F]
+```mermaid
+flowchart LR
+    subgraph before["分裂前"]
+        direction LR
+        n1["A"] --- n2["B"] --- n3["C"] --- n4["D"] --- n5["E"] --- n6["F"]
+    end
+
+    subgraph after["分裂后"]
+        direction LR
+        a1["A"] --- a2["B"] --- a3["C"]
+    end
+
+    subgraph new["新节点"]
+        direction LR
+        b1["D"] --- b2["E"] --- b3["F"]
+    end
+
+    before --> after
+    before --> new
+
+    style before fill:#fef3c7,stroke:#f59e0b,color:#92400e
+    style after fill:#dbeafe,stroke:#3b82f6,color:#1e40af
+    style new fill:#d1fae5,stroke:#10b981,color:#065f46
 ```
 
 **三步操作**：

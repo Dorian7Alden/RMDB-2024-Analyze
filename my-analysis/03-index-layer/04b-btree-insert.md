@@ -106,12 +106,50 @@ flowchart LR
 
 **场景**：`split` 之后调用。可能递归向上，最远到根节点。
 
-**源码**：`src/index/ix_index_handle.cpp:418`（参考实现）
-
 **两种情况**：
 
 1. **node 是根节点**：创建新根，将 old_node 和 new_node 的第一个 key 插入新根，设置父子关系
 2. **node 不是根节点**：获取父节点，在 `find_child(old_node) + 1` 位置插入 new_node 的第一个 key；如果父节点也满了，递归 `split` + `insert_into_parent`
+
+```cpp
+// IxIndexHandle::insert_into_parent, src/index/ix_index_handle.cpp:418
+void IxIndexHandle::insert_into_parent(
+    std::shared_ptr<IxNodeHandle>& old_node, const char* key,
+    std::shared_ptr<IxNodeHandle>& new_node, Transaction* transaction) {
+  if (old_node->is_root_page()) {
+    // 情况1：old_node 是根 → 创建新根
+    auto&& new_root = create_node();
+    new_root->page_hdr->parent = IX_NO_PAGE;
+    new_root->page_hdr->is_leaf = false;
+    // 将 old_node 和 new_node 的第一个 key 插入新根
+    new_root->insert_pair(0, old_node->get_key(0),
+                          {old_node->get_page_no(), -1});
+    new_root->insert_pair(1, key, {new_node->get_page_no(), -1});
+    // 维护父子关系
+    old_node->set_parent_page_no(new_root->get_page_no());
+    new_node->set_parent_page_no(new_root->get_page_no());
+    file_hdr_->root_page_ = new_root->get_page_no();
+    root_latch_.unlock();
+    buffer_pool_manager_->unpin_page(new_root->get_page_id(), true);
+    release_all_index_latch_page(transaction);
+  } else {
+    // 情况2：old_node 不是根 → 向父节点插入
+    auto&& parent_node = fetch_node(old_node->get_parent_page_no());
+    parent_node->insert_pair(parent_node->find_child(old_node) + 1, key,
+                             {new_node->get_page_no(), -1});
+    // 父节点也满了 → 递归分裂
+    if (parent_node->isFull()) {
+      auto&& new_sibling_node = split(parent_node);
+      insert_into_parent(parent_node, new_sibling_node->get_key(0),
+                         new_sibling_node, transaction);
+      new_sibling_node->page->WUnlatch();
+      buffer_pool_manager_->unpin_page(new_sibling_node->get_page_id(), true);
+    }
+    release_all_index_latch_page(transaction);
+    buffer_pool_manager_->unpin_page(parent_node->get_page_id(), true);
+  }
+}
+```
 
 ## insert_entry：顶层插入入口
 
@@ -119,13 +157,55 @@ flowchart LR
 
 **场景**：执行器在插入记录后调用，同步维护索引。重复 key 会被跳过。
 
-**源码**：`src/index/ix_index_handle.cpp:500`（参考实现）
-
 1. `find_leaf_page(key, INSERT)` → 从根逐层下到目标叶节点，加写锁
 2. `leaf_node->insert(key, value)` → 在叶节点中二分定位插入位置并插入，重复 key 则跳过
 3. 节点满了 → `split` 分裂 + `insert_into_parent` 向父节点插入新分隔键（可能递归向上）
 4. 如果插入位置是节点第一个 key → `maintain_parent` 向上更新父节点中对应该节点的分隔键
 5. 释放写锁和 unpin 页面
+
+```cpp
+// IxIndexHandle::insert_entry, src/index/ix_index_handle.cpp:500
+page_id_t IxIndexHandle::insert_entry(const char* key, const Rid& value,
+                                      Transaction* transaction) {
+  // 1. 查找目标叶节点
+  auto&& [leaf_node, is_root_locked] =
+      find_leaf_page(key, Operation::INSERT, transaction, false);
+  // 2. 插入键值对
+  int old_size = leaf_node->get_size();
+  const auto& [new_size, pos] = leaf_node->insert(key, value);
+  // 重复 key → 跳过
+  if (new_size == old_size) {
+    if (is_root_locked) root_latch_.unlock();
+    release_all_index_latch_page(transaction);
+    leaf_node->page->WUnlatch();
+    buffer_pool_manager_->unpin_page(leaf_node->page->get_page_id(), false);
+    return IX_NO_PAGE;
+  }
+  // 3. 插入在第一个位置 → 向上更新父节点的第一个 key
+  if (pos == 0) maintain_parent(leaf_node);
+  // 4. 节点满了 → 分裂 + 向上传播
+  if (leaf_node->isFull()) {
+    auto&& new_sibling_node = split(leaf_node);
+    insert_into_parent(leaf_node, new_sibling_node->get_key(0),
+                       new_sibling_node, transaction);
+    // 返回 key 实际所在的叶子页面号
+    page_id_t ret = Compare(new_sibling_node->get_key(
+        new_sibling_node->lower_bound(key)), key) == 0
+        ? new_sibling_node->get_page_no()
+        : leaf_node->get_page_no();
+    leaf_node->page->WUnlatch();
+    new_sibling_node->page->WUnlatch();
+    buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true);
+    buffer_pool_manager_->unpin_page(new_sibling_node->get_page_id(), true);
+    return ret;
+  }
+  // 未满 → 直接返回
+  page_id_t ret = leaf_node->get_page_no();
+  leaf_node->page->WUnlatch();
+  buffer_pool_manager_->unpin_page(leaf_node->get_page_id(), true);
+  return ret;
+}
+```
 
 ## 源码对应
 

@@ -45,7 +45,9 @@ flowchart TB
 
 ## 键比较：ix_compare
 
-`src/index/ix_index_handle.h:28-45`
+**含义**：B+ 树所有查找和排序的基础——比较两个键的大小。支持 INT、FLOAT、STRING 三种类型，多字段联合索引时逐字段比较。
+
+**源码**：`src/index/ix_index_handle.h:28-45`
 
 ```cpp
 // 单字段比较
@@ -87,23 +89,27 @@ flowchart TD
 
 ## find_leaf_page：从根到叶
 
-从根节点出发，逐层搜索直到叶节点。框架中为空，参考实现的流程：
+**含义**：B+ 树的逐层下钻操作——从根节点出发，每一层调用 `internal_lookup` 确定走哪个孩子，直到抵达叶节点。这是所有 B+ 树操作（查找、插入、删除）的公共前缀。
+
+**场景**：被 `get_value`、`insert_entry`、`delete_entry` 及树级 `lower_bound` / `upper_bound` 调用。
+
+**实现**：框架中为空，参考实现（`src/index/ix_index_handle.cpp:270`）：
 
 1. 读根节点（加读锁/写锁）
 2. 循环：当前不是叶节点 → 调用 `internal_lookup(key)` 找下一个孩子
 3. 到达叶节点 → 返回
 
-`src/index/ix_index_handle.cpp:270`（参考实现）
-
-关键点：锁缩放（latch crabbing）——向下遍历时先给子节点加锁，如果子节点安全（不会分裂/合并）则释放父节点锁，提高并发。查找操作用读锁，插入/删除操作用写锁。详见 [03-index-node-handle.md](./03-index-node-handle.md)。
+**关键点**：锁缩放（latch crabbing）——向下遍历时先给子节点加锁，如果子节点安全（不会分裂/合并）则释放父节点锁，提高并发。查找操作用读锁，插入/删除操作用写锁。详见 [03-index-node-handle.md](./03-index-node-handle.md)。
 
 ## internal_lookup：内部节点查孩子
 
-在内部节点中，确定目标 key 应该走**哪个孩子指针**继续向下搜索。
+**含义**：在内部节点中，确定目标 key 应该走**哪个孩子指针**继续向下搜索。
 
-内部节点的键和指针交替排列（`rid | key | rid | key | ... | rid`），每个键左右各有一个孩子指针。`internal_lookup` 用 `upper_bound` 找到第一个大于 key 的键，然后取它左边的孩子——那个孩子指向的子树正是 key 应该去的地方。
+内部节点的键和指针交替排列，每个键左右各有一个孩子指针。`internal_lookup` 用 `upper_bound` 找到第一个大于 key 的键，然后取它左边的孩子——那个孩子指向的子树正是 key 应该去的地方。
 
-`src/index/ix_index_handle.cpp:119`（参考实现）
+**场景**：由 `find_leaf_page` 在逐层向下遍历时调用（`src/index/ix_index_handle.cpp:296`）。
+
+**源码**：`src/index/ix_index_handle.cpp:119`（参考实现）
 
 ```cpp
 // IxNodeHandle::internal_lookup, src/index/ix_index_handle.cpp:119
@@ -114,11 +120,13 @@ page_id_t IxNodeHandle::internal_lookup(const char* key) {
 
 `value_at(i)` 返回 `rids[i]` 中存储的页面号（`src/index/ix_index_handle.h:96`）。
 
-由 `find_leaf_page` 在逐层向下遍历时调用（`src/index/ix_index_handle.cpp:296`）。
-
 ## leaf_lookup：叶节点内查找
 
-`src/index/ix_index_handle.cpp:100`（参考实现）
+**含义**：在叶节点中精确查找目标 key，找到则返回对应的记录 Rid（传出参数），找不到返回 false。
+
+**实现**：`lower_bound` 定位第一个 ≥ key 的位置 → 越界或不相等则不存在 → 相等则返回该位置的 Rid。
+
+**源码**：`src/index/ix_index_handle.cpp:100`（参考实现）
 
 ```cpp
 // IxNodeHandle::leaf_lookup, src/index/ix_index_handle.cpp:100
@@ -135,7 +143,11 @@ bool IxNodeHandle::leaf_lookup(const char* key, Rid** value) {
 
 ## get_value：顶层查找入口
 
-`src/index/ix_index_handle.cpp:329`（参考实现）
+**含义**：B+ 树精确查找的入口。给定 key，返回匹配的所有 Rid（可能有多个重复 key）。
+
+**实现**：`find_leaf_page` 定位叶节点 → `leaf_lookup` 精确查找 → 释放资源。
+
+**源码**：`src/index/ix_index_handle.cpp:329`（参考实现）
 
 1. `find_leaf_page(key, FIND)` → 找到叶节点
 2. `leaf_node->leaf_lookup(key, &rid)` → 查键
@@ -144,11 +156,16 @@ bool IxNodeHandle::leaf_lookup(const char* key, Rid** value) {
 
 ## 树级范围操作
 
-`lower_bound(key)`：调用 `find_leaf_page` + `leaf_node->lower_bound`，返回 `Iid{page_no, slot_no}`，用于 IxScan 的起始位置。
+**含义**：以下三个方法是 B+ 树对外暴露的范围扫描定位接口，返回 `Iid`（索引位置）而非 `Rid`。
 
-`upper_bound(key)`：同理，调用 `leaf_node->upper_bound`，返回 IxScan 的结束位置后一个。
+**场景**：全部被 `IxScan`（见 06）用于确定扫描的起止范围。
 
-`leaf_begin()` / `leaf_end()`：范围扫描的起止边界，leaf_begin 返回 first_leaf 的 Iid{first_leaf, 0}。
+| 方法 | 作用 | 实现 |
+|------|------|------|
+| `lower_bound(key)` | 返回第一个 ≥ key 的位置 | `find_leaf_page` + `leaf_node->lower_bound` |
+| `upper_bound(key)` | 返回第一个 > key 的位置 | `find_leaf_page` + `leaf_node->upper_bound` |
+| `leaf_begin()` | 扫描起点 | 返回 `Iid{first_leaf, 0}` |
+| `leaf_end()` | 扫描终点后一个 | 返回末叶节点末尾的下一个位置 |
 
 ## 源码对应
 

@@ -22,9 +22,13 @@ flowchart TD
 
 ## insert_pairs：节点内插入键值对
 
-`src/index/ix_index_handle.cpp:142`（参考实现）
+**含义**：在节点内部的 pos 位置插入 n 个连续键值对。最底层的插入操作，只操作当前节点，不关心树的结构变化。
 
-在节点的 pos 位置插入 n 个连续键值对。核心是 `memmove` 腾出空间：
+**场景**：被 `insert`、`split`、`insert_into_parent`、`redistribute` 调用。
+
+**实现**：核心是 `memmove` 腾出空间——把 pos 后面的元素右移 n 位，再把新数据 `memcpy` 填入空位。
+
+**源码**：`src/index/ix_index_handle.cpp:142`（参考实现）
 
 ```
 插入前: [A, B, D, E, _, _]  pos=2, n=1
@@ -56,9 +60,13 @@ void IxNodeHandle::insert_pairs(int pos, const char* key, const Rid* rid, int n)
 
 ## split：节点分裂
 
-`src/index/ix_index_handle.cpp:358`（参考实现）
+**含义**：节点已满时，从中间切分——左半留在原节点，右半搬到新节点。B+ 树长高的唯一途径。
 
-节点满时，将右半部分搬到新节点：
+**场景**：`insert_entry` 发现节点满了之后调用，分裂出的新键由 `insert_into_parent` 向上传播。
+
+**源码**：`src/index/ix_index_handle.cpp:358`（参考实现）
+
+**示例**：
 
 ```
 分裂前 node: [A, B, C, D, E, F]  假设 max_size=6
@@ -77,9 +85,11 @@ void IxNodeHandle::insert_pairs(int pos, const char* key, const Rid* rid, int n)
 
 ## insert_into_parent：向上传播
 
-`src/index/ix_index_handle.cpp:418`（参考实现）
+**含义**：分裂后，将新节点的第一个 key 作为分隔键插入父节点。如果父节点也满了则递归分裂。
 
-分裂后，新节点 `new_node` 的第一个 key 需要插入到父节点中。
+**场景**：`split` 之后调用。可能递归向上，最远到根节点。
+
+**源码**：`src/index/ix_index_handle.cpp:418`（参考实现）
 
 **两种情况**：
 
@@ -88,9 +98,11 @@ void IxNodeHandle::insert_pairs(int pos, const char* key, const Rid* rid, int n)
 
 ## insert_entry：顶层插入入口
 
-插入操作的入口。串联整个插入流程：找到位置 → 插入键值对 → 处理可能的分裂。
+**含义**：B+ 树插入操作的入口，串联整个流程：找到位置 → 插入键值对 → 满则分裂 → 向上传播。
 
-`src/index/ix_index_handle.cpp:500`（参考实现）
+**场景**：执行器在插入记录后调用，同步维护索引。重复 key 会被跳过。
+
+**源码**：`src/index/ix_index_handle.cpp:500`（参考实现）
 
 1. `find_leaf_page(key, INSERT)` → 从根逐层下到目标叶节点，加写锁
 2. `leaf_node->insert(key, value)` → 在叶节点中二分定位插入位置并插入，重复 key 则跳过

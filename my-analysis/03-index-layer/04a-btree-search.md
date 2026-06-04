@@ -78,11 +78,11 @@ int ix_compare(const char* a, const char* b,
 
 ```mermaid
 flowchart TD
-    A["get_value key"] --> B["find_leaf_page<br/>从根到叶"]
-    B --> C["leaf_lookup<br/>叶内二分查找"]
-    C --> D{"找到?"}
-    D -->|"是"| E["返回 Rid"]
-    D -->|"否"| F["返回 false"]
+    A["get_value 输入：索引键"] --> B["find_leaf_page<br/>从根逐层下钻到叶节点"]
+    B --> C["leaf_lookup<br/>叶节点内二分查找目标键"]
+    C --> D{"键是否存在？"}
+    D -->|"存在"| E["返回 Rid 输出：记录位置"]
+    D -->|"不存在"| F["返回 false 查找失败"]
 ```
 
 ## find_leaf_page：从根到叶

@@ -123,6 +123,8 @@ page_id_t value_at(int i) { return get_rid(i)->page_no; }
 
 `get_rid(i)` 返回第 i 个 Rid 的指针。在内部节点中，每个 Rid 存的是一个孩子节点的页面号，所以 `value_at` 的实际作用是：**给定下标 i，返回第 i 个孩子节点的页面号**。
 
+> 这里的方法名一点都不**见名知意**，命名不友好
+
 ## leaf_lookup：叶节点内查找
 
 **含义**：在叶节点中精确查找目标 key，找到则返回对应的记录 Rid（传出参数），找不到返回 false。
@@ -144,16 +146,27 @@ bool IxNodeHandle::leaf_lookup(const char* key, Rid** value) {
 
 ## get_value：顶层查找入口
 
-**含义**：B+ 树精确查找的入口。给定 key，返回匹配的所有 Rid（可能有多个重复 key）。
+**含义**：给定一个索引键，从 B+ 树中查出所有匹配的**记录 Rid**。注意：返回的不是记录内容，而是记录的物理位置——调用方拿着 Rid 再去记录层取实际数据。
 
-**实现**：`find_leaf_page` 定位叶节点 → `leaf_lookup` 精确查找 → 释放资源。
+**为什么返回多个 Rid？** 索引不一定建在唯一字段上。比如 `age=20` 的学生可能有好几个，B+ 树允许重复键，所以一次查找可能命中多条记录。`get_value` 把它们全部收集到 `std::vector<Rid>` 中返回。
 
-**源码**：`src/index/ix_index_handle.cpp:329`（参考实现）
+**签名**：`src/index/ix_index_handle.h`
 
-1. `find_leaf_page(key, FIND)` → 找到叶节点
-2. `leaf_node->leaf_lookup(key, &rid)` → 查键
-3. 释放锁和 unpin
-4. 返回 Rid
+```cpp
+// IxIndexHandle::get_value, src/index/ix_index_handle.h
+bool get_value(const char* key, std::vector<Rid>* result, Transaction* transaction);
+```
+
+- `key`：输入，要查找的索引键
+- `result`：输出，存放所有匹配记录的 Rid 列表
+- 返回值：找到至少一条返回 `true`，一条都没有返回 `false`
+
+**实现**：`src/index/ix_index_handle.cpp:329`（参考实现）
+
+1. `find_leaf_page(key, FIND)` → 加读锁，从根下到叶节点
+2. `leaf_node->leaf_lookup(key, &rid)` → 叶节点内二分查找第一个匹配的 key
+3. 沿叶节点链表继续扫描，收集所有相同 key 的 Rid
+4. 释放读锁和 unpin，返回结果
 
 ## 树级范围操作
 

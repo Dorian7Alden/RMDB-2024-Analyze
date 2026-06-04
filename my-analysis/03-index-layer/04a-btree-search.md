@@ -66,9 +66,9 @@ flowchart TD
 2. 循环：当前不是叶节点 → 调用 `internal_lookup(key)` 找下一个孩子
 3. 到达叶节点 → 返回
 
-`src/record/rm_file_handle.cpp:270`（参考实现）
+`src/index/ix_index_handle.cpp:270`（参考实现）
 
-关键点：锁缩放（latch crabbing）——向下遍历时先给子节点加锁，如果子节点安全（不会分裂/合并）则释放父节点锁，提高并发。查找操作用读锁，插入/删除操作用写锁。
+关键点：锁缩放（latch crabbing）——向下遍历时先给子节点加锁，如果子节点安全（不会分裂/合并）则释放父节点锁，提高并发。查找操作用读锁，插入/删除操作用写锁。详见 [03-index-node-handle.md](./03-index-node-handle.md)。
 
 ## internal_lookup：内部节点查孩子
 

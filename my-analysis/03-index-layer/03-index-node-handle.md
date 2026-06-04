@@ -84,7 +84,7 @@ int lower_bound(const char* target)  // 找第一个 >= target 的 key_idx
 int upper_bound(const char* target)  // 找第一个 > target 的 key_idx
 ```
 
-两个方法都可用二分查找实现，比较函数使用 `ix_compare`（见 [01-index-layer-overview.md](./01-index-layer-overview.md)）。
+两个方法都可用二分查找实现，比较函数使用 `ix_compare`（见 [04a-btree-search.md](./04a-btree-search.md)）。
 
 > **使用场景**：`lower_bound` 是节点内查找的基石，被以下方法调用：
 > - `leaf_lookup`（04a）——叶节点内精确查找 key
@@ -128,7 +128,7 @@ std::pair<int, int> remove(const char* key)
 > | `erase_pair` | `coalesce`（04c） | 合并后删除父节点中对应的分隔键 |
 > | `erase_pair` | `redistribute`（04c） | 重分配后删除兄弟的旧键 |
 > 
-> 换句话说：**insert/erase 是底层工具，split/coalesce/redistribute 用它们来重塑树的结构**。```
+> 换句话说：**insert/erase 是底层工具，split/coalesce/redistribute 用它们来重塑树的结构**。
 
 ## isSafe：锁缩放的判断
 

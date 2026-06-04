@@ -61,6 +61,10 @@ page_id_t get_prev_leaf()      // 前一个叶节点页面号
 page_id_t get_parent_page_no() // 父节点页面号
 ```
 
+> **使用场景**：
+> - `get_next_leaf` / `get_prev_leaf`：叶节点链表是 B+ 树范围扫描的基础（见 06 IxScan）。`split`（04b）和 `coalesce`（04c）也会维护这条链表
+> - `get_parent_page_no`：分裂或合并后需要向上修改父节点时使用（`insert_into_parent`、`coalesce_or_redistribute`）
+
 ## 节点类型判断
 
 ```cpp
@@ -81,6 +85,14 @@ int upper_bound(const char* target)  // 找第一个 > target 的 key_idx
 ```
 
 两个方法都可用二分查找实现，比较函数使用 `ix_compare`（见 [01-index-layer-overview.md](./01-index-layer-overview.md)）。
+
+> **使用场景**：`lower_bound` 是节点内查找的基石，被以下方法调用：
+> - `leaf_lookup`（04a）——叶节点内精确查找 key
+> - `internal_lookup`（04a）——内部节点定位下一个孩子
+> - `insert`（本页）——找到插入位置
+> - `remove`（本页）——找到删除位置
+> 
+> 树级的 `lower_bound` / `upper_bound`（见 04a）则是对外暴露的范围扫描入口，`IxScan`（06）用它们确定扫描的起止边界。
 
 ## 插入与删除
 
@@ -104,7 +116,41 @@ std::pair<int, int> remove(const char* key)
 // 查找并删除指定 key 的键值对，返回删除后的数量和位置
 ```
 
+> **使用场景**：这些方法本身只操作当前节点，不关心树的结构变化。它们被更高层的方法调用：
+> 
+> | 方法 | 被谁调用 | 场景 |
+> |------|---------|------|
+> | `insert` | `insert_entry`（04b） | 找到叶节点后，先插入键值对 |
+> | `insert_pairs` | `split`（04b） | 将节点右半部分搬到新节点 |
+> | `insert_pairs` | `insert_into_parent`（04b） | 将新节点的第一个 key 插入父节点 |
+> | `insert_pair` | `redistribute`（04c） | 从兄弟节点借一个键值对 |
+> | `remove` | `delete_entry`（04c） | 找到叶节点后，先删除键值对 |
+> | `erase_pair` | `coalesce`（04c） | 合并后删除父节点中对应的分隔键 |
+> | `erase_pair` | `redistribute`（04c） | 重分配后删除兄弟的旧键 |
+> 
+> 换句话说：**insert/erase 是底层工具，split/coalesce/redistribute 用它们来重塑树的结构**。```
+
 ## isSafe：锁缩放的判断
+
+### 先理解：什么操作会导致结构变化
+
+B+ 树的结构变化只有三种：**分裂**、**合并**、**重分配**。
+
+```
+INSERT → 叶节点插入 → 节点满了？→ 分裂（split）
+                                 → 父节点多了一个孩子 + 一个新分隔键
+                                 → 父节点可能也满 → 继续向上分裂
+
+DELETE → 叶节点删除 → 节点太空？→ 先尝试重分配（redistribute）
+                                 → 兄弟够借 → 移动键值对，更新父节点的分隔键
+                                 → 兄弟不够 → 合并（coalesce）
+                                 → 父节点少了一个孩子和一个分隔键
+                                 → 父节点可能也太空 → 继续向上合并
+```
+
+关键在于：**叶节点的结构变化会向上传播，修改父节点**。分裂要向父节点插入新键，合并要从父节点删除键，重分配要更新父节点的分隔键。
+
+> 分裂、合并、重分配的完整流程见 04b（插入）、04c（删除）。
 
 ### 先理解：为什么要锁缩放
 

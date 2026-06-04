@@ -32,9 +32,9 @@ flowchart TB
 > ```
 > 以 keys=[40, 70] 为例，rids=[rid0, rid1, rid2] 三个孩子各自负责：
 >
->   rid0  ──→  值 < 40 的子树
->   rid1  ──→  40 ≤ 值 < 70 的子树
->   rid2  ──→  值 ≥ 70 的子树
+>   rid0  -->  值 < 40 的子树
+>   rid1  -->  40 ≤ 值 < 70 的子树
+>   rid2  -->  值 ≥ 70 的子树
 >
 > 排列在一起就是：rid0 | 40 | rid1 | 70 | rid2
 > ```
@@ -99,6 +99,10 @@ flowchart TD
 
 ## internal_lookup：内部节点查孩子
 
+在内部节点中，确定目标 key 应该走**哪个孩子指针**继续向下搜索。
+
+内部节点的键和指针交替排列（`rid | key | rid | key | ... | rid`），每个键左右各有一个孩子指针。`internal_lookup` 用 `upper_bound` 找到第一个大于 key 的键，然后取它左边的孩子——那个孩子指向的子树正是 key 应该去的地方。
+
 `src/index/ix_index_handle.cpp:119`（参考实现）
 
 ```cpp
@@ -108,9 +112,9 @@ page_id_t IxNodeHandle::internal_lookup(const char* key) {
 }
 ```
 
-`upper_bound(key)` 返回第一个 **大于** key 的位置。
-- 如果 key=10，keys 为 [5, 15, 25]，则 upper_bound 返回 1（5≤10<15，15 是第一个 > 10 的）
-- 减 1 后为 0，即 value_at(0)，等于 keys[0] 左侧的孩子指针
+`value_at(i)` 返回 `rids[i]` 中存储的页面号（`src/index/ix_index_handle.h:96`）。
+
+由 `find_leaf_page` 在逐层向下遍历时调用（`src/index/ix_index_handle.cpp:296`）。
 
 ## leaf_lookup：叶节点内查找
 

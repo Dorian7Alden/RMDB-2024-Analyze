@@ -88,15 +88,15 @@ void IxNodeHandle::insert_pairs(int pos, const char* key, const Rid* rid, int n)
 
 ## insert_entry：顶层插入入口
 
+插入操作的入口。串联整个插入流程：找到位置 → 插入键值对 → 处理可能的分裂。
+
 `src/index/ix_index_handle.cpp:500`（参考实现）
 
-整合以上步骤：
-
-1. `find_leaf_page(key, INSERT)` → 找到叶节点
-2. `leaf_node->insert(key, value)` → 插入，重复则跳过
-3. 检查是否满 → `split` + `insert_into_parent`
-4. 如果插入在第一个位置，调用 `maintain_parent` 向上更新父节点的第一个 key
-5. 释放锁和 unpin
+1. `find_leaf_page(key, INSERT)` → 从根逐层下到目标叶节点，加写锁
+2. `leaf_node->insert(key, value)` → 在叶节点中二分定位插入位置并插入，重复 key 则跳过
+3. 节点满了 → `split` 分裂 + `insert_into_parent` 向父节点插入新分隔键（可能递归向上）
+4. 如果插入位置是节点第一个 key → `maintain_parent` 向上更新父节点中对应该节点的分隔键
+5. 释放写锁和 unpin 页面
 
 ## 源码对应
 

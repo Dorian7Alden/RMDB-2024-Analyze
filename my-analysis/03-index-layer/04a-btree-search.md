@@ -114,7 +114,14 @@ page_id_t IxNodeHandle::internal_lookup(const char* key) {
 }
 ```
 
-`value_at(i)` 返回 `rids[i]` 中存储的页面号（`src/index/ix_index_handle.h:96`）。
+其中 `value_at(i)` 是 `IxNodeHandle` 的辅助方法（`src/index/ix_index_handle.h:96`）：取节点内第 i 个 Rid 中存储的**页面号**。
+
+```cpp
+// IxNodeHandle::value_at, src/index/ix_index_handle.h:96
+page_id_t value_at(int i) { return get_rid(i)->page_no; }
+```
+
+`get_rid(i)` 返回第 i 个 Rid 的指针。在内部节点中，每个 Rid 存的是一个孩子节点的页面号，所以 `value_at` 的实际作用是：**给定下标 i，返回第 i 个孩子节点的页面号**。
 
 ## leaf_lookup：叶节点内查找
 

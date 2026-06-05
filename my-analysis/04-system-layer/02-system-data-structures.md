@@ -9,6 +9,7 @@
 ```mermaid
 flowchart LR
     subgraph db["DbMeta 数据库元数据"]
+        direction LR
         style db fill:#dbeafe,stroke:#3b82f6,color:#1e40af
         NAME["name_ 数据库名称"]
         TABS["tabs_ 表集合<br/>unordered_map<string, TabMeta>"]
@@ -287,4 +288,4 @@ flowchart TD
 | `ColDef` | `src/system/sm_manager.h` | 21-25 |
 | `SmManager` 成员 | `src/system/sm_manager.h` | 28-39 |
 
-上一节：[01-system-layer-overview.md](./01-system-layer-overview.md)（待编写） | 下一节：[03-database-operations.md](./03-database-operations.md)（待编写）
+上一节：[01-system-layer-overview.md](./01-system-layer-overview.md) | 下一节：[03-database-operations.md](./03-database-operations.md)（待编写）

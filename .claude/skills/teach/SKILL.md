@@ -1,113 +1,108 @@
 ---
 name: teach
 description: >
-  Teach DBMS concepts with proper methodology. Use this skill whenever the user
-  asks to learn, understand, explain, or explore any DBMS concept — "teach me X",
-  "how does X work", "what is X", "explain X", "walk me through X". This skill
-  enforces: context first, connect to previous layers, source code before
-  explanation, three-layer structure (overview→detail→synthesis), framework vs
-  reference comparison, and concrete examples.
+  讲解 DBMS 概念时使用。用户要求学习、理解、讲解任何 DBMS 概念时自动激活——
+  "教我 X"、"X 是怎么工作的"、"X 是什么"、"解释一下 X"、"走一遍 X 的流程"。
+  强制按序执行：建立上下文 → 联系已学层 → 源码优先 → 三层递进讲解 → 框架对比 → 实例走读 → 范围评估 → 交接。
 ---
 
-# DBMS Teaching Methodology
+# DBMS 教学流程
 
-This skill encodes the teaching methodology for the RMDB project. Follow these
-steps in order when the user asks to learn a concept. Each step builds on the
-previous one — don't skip.
+用户要求学习某个 DBMS 概念时，按以下 8 步工作流执行。每步依赖前一步的结果，不要跳步。
 
-## Workflow
+## 工作流
 
-### Step 1: Establish Context
+### 第 1 步：建立上下文
 
-Before any explanation, orient the reader:
+讲解任何内容前先给读者一个定位：
 
-- Which layer/module does this concept belong to? (storage / record / index / system / transaction / execution)
-- What is it? (one sentence)
-- Why does it exist? (what problem does it solve?)
-- Where does it fit in the architecture? (mention the `src/` directory)
+- 这个概念属于哪个层/模块？（storage / record / index / system / transaction / execution）
+- 它是什么？（一句话定义）
+- 为什么存在？（解决什么问题？）
+- 在架构中处于什么位置？（关联到 `src/` 目录树中的位置）
 
-Keep this brief — the goal is a mental map, not a textbook chapter.
+保持简短——目的是给读者一个心理地图，不是写教科书。
 
-### Step 2: Connect to Previous Layers
+### 第 2 步：联系已学层
 
-Make the knowledge coherent by linking to what the user already learned:
+让知识和已有认知挂钩，不要孤立地讲新概念：
 
-- **Similarities**: "Like [previous layer]'s X, this Y also..." (e.g., both `.db` and `.idx` are fixed-length page files, both load by Page, both have file headers and page headers)
-- **Differences**: "But unlike [previous layer], here Z is different because..." (e.g., Bitmap vs Keys array, free list vs B+ tree structure)
-- Use a comparison table when there are 3+ dimensions to compare
+- **相似处**："和[已学层]的 X 一样，这个 Y 也……"（比如 `.idx` 和 `.db` 都是定长页面文件、都按 Page 加载、都有文件头和页头）
+- **差异处**："但和[已学层]不同，这里 Z 不一样，因为……"（比如 Bitmap vs Keys 数组、空闲链表 vs B+ 树结构）
+- 如果对比维度超过 3 个，用对比表格呈现
 
-This step prevents isolated knowledge — the user should feel each layer builds on the last.
+目的是让读者感觉知识是连贯的，每层都在已有基础上构建。
 
-### Step 3: Source Code First
+### 第 3 步：源码优先
 
-Show the code BEFORE explaining it. The source is the primary material; your explanation is the supplement.
+先展示代码，再解释含义。源码是第一手材料，讲解是辅助。
 
-- Open the header file first — show class/struct declarations
-- Give the file path and line range
-- Let the reader SEE what they're working with
-- Only then explain what the code means
+- 先打开头文件，展示类/结构体声明
+- 给出文件路径和行号范围
+- 让读者先看到代码长什么样
+- 然后再解释代码的含义
 
-Format:
+格式：
 ```
-**源码**: `src/xxx/xxx.h:10-50`
+**源码**：`src/xxx/xxx.h:10-50`
 
-[code block]
+[代码块]
 ```
 
-### Step 4: Three-Layer Explanation
+### 第 4 步：三层递进讲解
 
-This is the core of the teaching method. Never start with a specific method or code snippet — always go top-down.
+这是教学的核心结构。禁止一上来就讲具体方法或代码片段——必须从宏观到微观。
 
-**Layer 1 — Abstract Overview:**
-Give the big picture. What's the whole thing about? Use a mermaid flowchart or a text summary. The reader should understand: input, output, phases, and how phases relate.
+**第一层：抽象概览**
+给大图景。这件事整体上是什么？用 mermaid 流程图或文字概述。读者读完应该知道：输入什么、输出什么、分几个阶段、各阶段什么关系。
 
-**Layer 2 — Block-by-Block Detail:**
-Take each phase from the overview and dive deep. For each block, follow the same mini-loop: what this block does → show the code → explain the logic → give an example. One block at a time, in order.
+**第二层：逐块拆解**
+把概览中的每个阶段拿出来逐一深入。每块也遵循同样的模式：这块做什么 → 展示代码 → 解释逻辑 → 给例子。每次一块，按顺序来。
 
-**Layer 3 — Connect Back:**
-After all blocks are explained, return to the overview perspective. Show the call chain, data flow direction, dependency hierarchy. The reader should now have a complete mental model.
+**第三层：串联回顾**
+所有块讲完后回到概览视角。展示调用链、数据流向、依赖层次。读者此时应该形成完整认知。
 
-Never skip Layer 1. The reader must know the whole before understanding the parts.
+绝不跳过第一层。读者必须先知道整体，才能理解局部。
 
-### Step 5: Framework Contrast
+### 第 5 步：框架对比
 
-Compare `db2026-x/` (competition framework — what the learner needs to write) vs `src/` (reference implementation — how it's done):
+对比 `db2026-x/`（比赛框架——学习者要写的）和 `src/`（参考实现——怎么写好的）：
 
-- For each difference, explain **WHY** the reference made that choice, not just WHAT changed
-- Use a comparison table: | Aspect | Framework (db2026-x) | Reference (src) | Why Different |
-- Framework code that's already complete gets a brief mention only — focus on TODO/empty method bodies
-- The goal: the learner understands the design rationale, not just copies code
+- 每个差异都要解释参考实现**为什么**做这个选择，不止列变化
+- 用对比表格：| 方面 | 框架 (db2026-x) | 参考 (src) | 为什么不同 |
+- 框架已完整实现的内容简要提及即可——重点放在 TODO / 方法体为空的待实现部分
+- 目标：学习者理解设计思路，不是抄代码
 
-### Step 6: Concrete Walkthrough
+### 第 6 步：具体实例走读
 
-Abstract explanations aren't enough. Walk through a specific example end-to-end:
+抽象讲解不够，必须端到端走一个具体例子：
 
-- Use a concrete table (e.g., "student table with id INT, name STRING, age INT")
-- Use specific values (e.g., "insert age=20 into node (18, 22, 25)")
-- Trace the data flow step by step: "when X calls Y, here's what happens"
-- Show before/after states
+- 用具体的表（比如"student 表有 id INT, name STRING, age INT"）
+- 用具体的值（比如"把 age=20 插入到节点 (18, 22, 25) 中"）
+- 逐步追踪数据流："当 X 调用 Y 时，实际发生的是……"
+- 展示操作前后的状态变化
 
-### Step 7: Scope Assessment
+### 第 7 步：范围评估
 
-After the explanation, assess what documentation this topic needs:
+讲解完后，评估这个主题需要哪些文档：
 
-- Does this layer have an interaction doc? (each layer must have one — check `my-analysis/0X-.../`)
-- Does this layer have an API reference doc? (each layer must have one)
-- Does this topic need a data structure overview diagram? (first doc of each layer must have one)
-- Are there related concepts the user asked about repeatedly that should become standalone docs?
+- 这层有交互文档了吗？（每层必须有一个，检查 `my-analysis/0X-.../` 目录）
+- 这层有 API 速查文档了吗？（每层必须有一个）
+- 这个主题需要数据结构总览图吗？（每层的第一个文档必须有）
+- 是否有用户反复追问的概念，应该单独成文？
 
-Tell the user what's available and what might be worth creating.
+告诉用户哪些已经有了、哪些值得新建。
 
-### Step 8: Handoff
+### 第 8 步：交接
 
-Ask the user: "Should I write this up as a tutorial document?"
+问用户："要不要把刚才的内容写成文档？"
 
-- If yes → invoke the `write` skill to create/edit the document
-- If no → stop here. The teaching is complete.
+- 要 → 激活 `write` skill 来写文档
+- 不要 → 到此为止，教学完成
 
-## Key Principles
+## 核心原则
 
-- **What before why before where**: Define the concept → explain the motivation → show where it's used
-- **Source code is primary**: The ultimate goal is to read and write source code. Every explanation must trace back to actual code.
-- **Concrete over abstract**: Every abstract concept gets a concrete example.
-- **Respect the framework**: The learner's task is to fill in `db2026-x/`. Help them understand the design, not just copy `src/`.
+- **先是什么、再为什么、最后在哪里用**：定义概念 → 解释动机 → 展示使用场景
+- **源码是最终目标**：学 DBMS 的最终目的是看懂源码、手写源码，每次讲解都必须追溯到实际代码
+- **抽象必配实例**：每个抽象概念都要跟一个具体例子
+- **尊重框架**：学习者的任务是把 `db2026-x/` 填满，帮他们理解设计思路而不是直接抄 `src/`

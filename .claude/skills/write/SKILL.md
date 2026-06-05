@@ -1,120 +1,113 @@
 ---
 name: write
 description: >
-  Write or edit tutorial documentation in my-analysis/. Use this skill whenever
-  the user asks to write documentation, create a tutorial doc, add a section,
-  edit a doc, or when the teach skill hands off. This skill enforces: proper
-  document planning, three-layer structure, indicator labels, short paragraphs,
-  mermaid diagram rules, source code referencing, navigation links, and
-  self-review.
+  编写或编辑 my-analysis/ 下的教程文档时使用。用户要求写文档、加章节、编辑文档时
+  自动激活，或由 teach skill 交接过来时激活。强制按序执行：规划文档 → 数据结构
+  总览图 → 逐组件写作 → 图表补充 → 锁说明 → 导航收尾 → 自审 → 标记提交。
 ---
 
-# Tutorial Document Writing
+# 教程文档写作
 
-This skill encodes all writing, formatting, and diagram rules for `my-analysis/`
-tutorial docs. Follow these steps in order when writing or editing documents.
+在 `my-analysis/` 中编写或编辑教程文档时，按以下 8 步工作流执行。
 
-## Workflow
+## 工作流
 
-### Step 1: Plan the Document
+### 第 1 步：规划文档
 
-Before writing a single line, plan:
+动笔前先规划：
 
-- **Filename**: Follow the pattern `##letter-topic.md` (e.g., `02a-record-page.md`).
-  Same topic shares a number, a/b/c letters subdivide it. Main content first (a, b, c),
-  supplements after.
-- **Location**: Determine which `my-analysis/` subdirectory it belongs in.
-- **Scope**: One document = one topic. If this covers multiple topics, split it.
-- **Sequence**: Check existing docs in the directory to find the correct number.
-- If editing an existing doc: read it fully first, understand current structure.
-- For new layers, follow the established pattern: overview → data structures →
-  components → interaction → API reference → summary.
+- **文件名**：遵循 `序号字母-话题.md` 格式（比如 `02a-record-page.md`）。同一话题共用一个序号，a/b/c 字母细分。正文在前（a, b, c...），补充在后。
+- **位置**：确定放在 `my-analysis/` 的哪个子目录下。
+- **职责**：一个文档只讲一个主题。如果覆盖多个主题，拆成多个文档。
+- **序号**：检查同目录现有文档，找到正确的序号。
+- 如果编辑已有文档：先完整读一遍，理解当前结构和内容再改。
+- 对于新层，遵循已有的文档编排模式：概览 → 数据结构 → 组件 → 交互 → API 速查 → 总结。
 
-### Step 2: Data Structure Overview Diagram
+### 第 2 步：数据结构总览图
 
-For the first/second document of each layer (data structures doc), create a
-layered overview diagram using mermaid subgraph nesting:
+每层的第一个或第二个文档（数据结构文档）必须画一张分层总览图，用 mermaid subgraph 嵌套展示从外到内的包含关系：
 
-- Show containment from outer to inner (e.g., .db file → data page → page_hdr + bitmap + slots)
-- Each nesting level gets a different color: outer=cool tones, inner=warm tones
-- Label each level briefly so readers see "what contains what" at a glance
-- Reference: `my-analysis/02-record-layer/02-record-data-structures.md` is the model
+- 展示包含层次（比如 .db 文件 → 数据页 → page_hdr + bitmap + slots）
+- 每层用不同颜色：外层冷色调，内层暖色调，层次越深越突出
+- 每层简要标注，读者一眼看出"谁包含谁、数据长什么样"
+- 参考模板：`my-analysis/02-record-layer/02-record-data-structures.md` 的风格
 
-### Step 3: Write Each Component Section
+### 第 3 步：逐组件写作
 
-For every component, class, or function, follow this pattern IN ORDER:
+每个组件、类、函数按以下顺序写，用指示性标签引导：
 
-1. **含义**: What is it? One short sentence defining the concept.
-2. **作用** / **用途**: Why does it exist? What problem does it solve?
-3. **场景**: Where is it called from? Which callers use it in what flow?
-4. Source code block with `// src/xxx/xxx.cpp:line` on the first line inside the block.
-   Do NOT add a separate `**源码**：` label outside the block — the comment inside is sufficient.
-5. **示例**: Concrete example with actual data values.
-6. **输入** / **输出**: Parameter and return value meanings (for functions/methods).
+1. **含义**：它是什么？一句话定义。
+2. **作用** / **用途**：它为什么存在？解决什么问题？
+3. **场景**：在哪里被调用？被谁使用？在什么流程中用到？
+4. 源码代码块，第一行用注释标注位置：`// src/xxx/xxx.cpp:行号`。
+   不要在代码块外再加 `**源码**：` 标签——块内注释已足够。
+5. **示例**：用具体数据的例子。
+6. **输入** / **输出**：参数和返回值的含义（仅限函数/方法）。
 
-Section formatting rules:
-- **Short paragraphs**: One sentence per paragraph where possible. Break at every period.
-- **Indicator labels**: Every section MUST start with a label (含义, 作用, etc.) so readers know what kind of information they're reading.
-- **Abbreviations**: Define on first use: "RM (Record Manager)".
-- **English terms**: Only include English originals for source code identifiers, not for ordinary words.
-- **Key terminology**: Distinguish 键 (key) vs 键值对 (key-value pair). Never say just "键值" — it's ambiguous.
-- **Titles**: Topic only, no dashes, parentheses, or English translations in headings.
+段落格式要求：
+- **一句一段**：每个句号后另起一段。尽量一句一段。
+- **指示性标签**：每个解释性段落必须以标签开头（含义、作用、场景等），读者不应自行猜测"这段在讲什么"。
+- **缩写全称**：首次出现时给出全称，比如"RM (Record Manager)"。
+- **原文只给源码名**：只有源码中的标识符才给英文原文再中文解释，普通文字直接用中文。
+- **严格区分术语**：键（key）指索引字段的值；键值对（key-value pair）指 key 和 value 的组合。禁止单独说"键值"——这个词有歧义。
+- **标题只含主题词**：不含破折号、括号、英文翻译。
 
-### Step 4: Add Diagrams Where Helpful
+### 第 4 步：图表补充
 
-Choose the right format:
+选择正确的呈现形式：
 
-- **Use mermaid** for: flowcharts, sequence diagrams, hierarchical relationships.
-- **Use tables** for: comparison matrices, conditional logic, multi-dimensional evaluation.
-- **Use text file trees** for: project structure, directory layout.
+- **用 mermaid**：流程图、时序图、层级关系。
+- **用表格**：对比矩阵、条件判断、多维度评估。
+- **用文字文件树**：项目结构、目录布局。
 
-Mermaid rules:
-- No `()` `<>` `*` `/` in node text — use text descriptions instead.
-- If a diagram needs a color/symbol legend, put the legend in a separate second diagram.
-- Use subgraph nesting for containment relationships.
-- Colored subgraphs: outer=cool tones, inner=warm tones, deeper=more prominent.
-- Use sticky-note style nodes (dashed border, special color) + dotted arrows (`-.->`) for annotations.
+Mermaid 规则：
+- 节点文本中禁用 `()` `<>` `*` `/` 等特殊字符，用文字描述代替。
+- 如需颜色/符号说明，图例和主图分成两个独立的图（先主图，后图例）。
+- 包含/层级关系用 subgraph 嵌套呈现。
+- 层级子图每层不同颜色，外层冷色、内层暖色。
+- 便利贴式备注：用虚线边框 + 特殊颜色节点 + 虚线箭头（`-.->`）指向目标。
 
-### Step 5: Specify Locks Precisely
+### 第 5 步：锁的精准说明
 
-Whenever mentioning locks, state ALL four dimensions:
+提到锁时，必须说明全部四个维度：
 
-- **Level**: Page latch (RLatch/WLatch), transaction lock, root mutex (root_latch_), etc.
-- **Scope**: What resource is locked (entire file, single page, single node).
-- **Type**: Read vs write, shared vs exclusive.
-- **Lifecycle**: When acquired, when released.
+- **级别**：Page 级锁（RLatch/WLatch）、事务级锁、根互斥锁（root_latch_）等
+- **范围**：锁住了什么资源（整个文件、单个页面、单个节点、单个槽位）
+- **类型**：读锁还是写锁、共享还是排他
+- **生命周期**：何时加锁、何时释放
 
-Don't just say "it locks". Be specific about what, how, and for how long.
+禁止笼统说"这里加锁"。必须具体说明用什么锁、锁什么、锁多久。
 
-### Step 6: Navigation and Polish
+### 第 6 步：导航与收尾
 
-- End every document with navigation links:
-  ```
-  上一节：[filename.md](./filename.md) | 下一节：[filename.md](./filename.md)
-  ```
-- Use filenames as the link text, NOT Chinese titles.
-- If the document is the first or last in its sequence, only include the applicable direction.
+文档末尾必须有导航链接：
 
-### Step 7: Self-Review
+```
+上一节：[文件名.md](./文件名.md) | 下一节：[文件名.md](./文件名.md)
+```
 
-After writing, verify:
+- 用文件名作为链接显示文本，不用中文标题。
+- 如果是该序列的第一篇或最后一篇，只写有的一侧。
 
-- [ ] All file paths and line numbers are accurate
-- [ ] No orphan references to concepts not yet explained
-- [ ] No long paragraphs that should be split (one sentence = one paragraph)
-- [ ] Every abbreviation defined on first use
-- [ ] Every section has an indicator label
-- [ ] No "键值" ambiguity — use "键" or "键值对" explicitly
-- [ ] No special characters in mermaid diagrams
-- [ ] Navigation links present at the end
+### 第 7 步：自审
 
-### Step 8: Signal Commit
+写完后逐项检查：
 
-After writing is complete and self-reviewed, invoke the `commit` skill to stage,
-commit, and push the changes.
+- [ ] 所有文件路径和行号准确无误
+- [ ] 没有突然出现的、上下文没解释的概念
+- [ ] 没有应该拆分的段落（一句一段）
+- [ ] 所有缩写首次出现时已给出全称
+- [ ] 每个解释性段落都有指示性标签开头
+- [ ] 没有"键值"歧义——已明确使用"键"或"键值对"
+- [ ] mermaid 图中没有特殊字符
+- [ ] 文档末尾有导航链接
 
-## Quality Standards
+### 第 8 步：标记提交
 
-- **Ready to publish**: Consistent style, consistent formatting, no draft-like quality.
-- **Self-contained**: Each doc is complete on its own topic. Cross-references are fine but the reader shouldn't need to read three other docs to understand this one.
-- **Zero-base friendly**: Assume the reader is a beginner. Supplement necessary prerequisite concepts inline.
+自审完成后，激活 `commit` skill 暂存、提交并推送。
+
+## 质量标准
+
+- **随时能出版**：风格统一、排版统一，不能像草稿。
+- **自包含**：每个文档在自己的主题上是完整的。交叉引用没问题，但读者不应该需要先读三篇别的文档才能理解这一篇。
+- **零基础友好**：假设读者是刚入门的小白，必要的预备知识在正文中按需补充。

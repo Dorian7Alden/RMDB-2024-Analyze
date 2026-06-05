@@ -1,87 +1,78 @@
 ---
 name: meta
 description: >
-  Update skills and rules based on user feedback. Use this skill when the user
-  gives behavioral feedback — "remember this", "from now on", "always do X",
-  "never do Y", "change the rule", "adjust the workflow", "I don't like how you
-  did Z", "next time do W". This skill distills the feedback into an actionable
-  principle and surgically updates the relevant skill file.
+  根据用户反馈调整 skill 和规则。用户给出行为反馈时自动激活——"记住"、"以后"、
+  "每次都要"、"不要"、"改一下规则"、"调整一下"、"我不喜欢你这样做"、"下次"。
+  提炼反馈中的可执行原则，精准更新对应的 skill 文件。
 ---
 
-# Meta: Skill and Rule Adjustment
+# Meta：规则与 Skill 调整
 
-This skill handles user feedback about how the model should behave. Instead of
-passively recording rules, it actively updates the relevant skill's workflow
-steps.
+处理用户关于"模型应该怎么做"的反馈。不再是往被动规则文件里追加，而是主动修改对应 skill 的工作流步骤。
 
-## Workflow
+## 工作流
 
-### Step 1: Detect the Feedback Signal
+### 第 1 步：检测反馈信号
 
-The user is giving behavioral feedback when they say things like:
+用户说以下话术时代表在给行为反馈：
 
-- "from now on, ..." / "以后..."
-- "remember this" / "记住"
-- "always do X" / "每次都要..."
-- "never do Y" / "不要..."
-- "change the rule about Z" / "改一下...的规则"
-- "adjust how you..." / "调整..."
-- "I don't like how you did Z" / "我不喜欢你..."
-- "next time, do W instead" / "下次..."
+- "以后……" / "from now on..."
+- "记住……"
+- "每次都要……" / "always..."
+- "不要……" / "never..."
+- "改一下……的规则"
+- "调整一下……"
+- "我不喜欢你……的做法"
+- "下次……" / "next time..."
 
-Any correction or preference about teaching, writing, or workflow behavior is
-a trigger.
+对教学、写作、提交行为的任何纠正或偏好表达都是触发信号。
 
-### Step 2: Identify the Target
+### 第 2 步：定位目标
 
-Which skill does this feedback affect?
+反馈影响哪个 skill？
 
-| Feedback about... | Target skill |
-|-------------------|-------------|
-| Teaching methodology, explanation order, framework comparison, connecting layers | `teach` |
-| Document format, writing style, diagrams, navigation, self-review | `write` |
-| Git commits, commit messages, staging, pushing | `commit` |
-| How rules/skills are managed, this meta process itself | `meta` |
+| 反馈涉及…… | 目标 skill |
+|-----------|-----------|
+| 教学方法、讲解顺序、框架对比、联系已学层 | `teach` |
+| 文档格式、写作风格、图表、导航、自审 | `write` |
+| Git 提交、提交信息、暂存、推送 | `commit` |
+| 规则管理本身、本 meta 流程 | `meta` |
 
-Which specific step in the workflow should change? Read the target skill
-file to find the right step.
+再定位到具体哪个步骤。读取目标 skill 文件，确定是哪个步骤需要改。
 
-### Step 3: Distill the Principle
+### 第 3 步：提炼原则
 
-Do NOT transcribe the user's exact words verbatim. Instead:
+不要直接转录用户的原始描述。用户的表述可能不够准确或专业。要：
 
-- Extract the **actionable core**: what should the model DO differently?
-- Generalize beyond the specific example: does this apply to ALL teaching,
-  or just to a specific scenario?
-- If the new instruction contradicts an existing step: **REPLACE** the old one.
-  Don't accumulate conflicting rules.
-- If it's an addition: add a sub-bullet to the relevant step, or add a new step
-  only if it's a distinct phase of the workflow.
-- Keep skills concise: prefer refining existing steps over adding new ones.
+- 提取**可执行的核心动作**：模型应该**做什么**不同了？
+- 从具体例子中**泛化**：这个反馈只适用于当前场景，还是适用于所有同类场景？
+- 如果新指令和旧步骤**冲突**：**替换**旧的，不要两个都留着。
+- 如果是**新增**：在对应步骤下加子条目。只有完全是独立阶段时才新增步骤。
+- 保持 skill 精炼：优先打磨现有步骤，而不是增加新步骤。
 
-### Step 4: Update the Skill File
+### 第 4 步：更新 skill 文件
 
-- Read the target skill file
-- Make the surgical edit to the specific step
-- If the user's instruction was imprecise, refine it while preserving their intent
-- Keep the skill self-contained — don't add cross-references to other skills
+- 读取目标 skill 文件
+- 精准编辑对应步骤
+- 如果用户的表述不精确，在保留其意图的前提下提炼措辞
+- 保持 skill 自包含——不加跨 skill 的引用
 
-### Step 5: Confirm
+### 第 5 步：确认
 
-Tell the user exactly what changed:
+告诉用户具体改了什么：
 
 ```
-I've updated the [skill name] skill.
-Step [N] ([step name]): [what changed].
-Before: [old behavior]
-After: [new behavior]
+已更新 [skill 名] skill。
+第 [N] 步（[步骤名]）：[改了什么]。
+之前：[旧行为]
+之后：[新行为]
 ```
 
-If you refined the user's original wording, explain how and why.
+如果对用户的原始表述做了提炼，说明怎么提炼的、为什么。
 
-## Principles
+## 原则
 
-- **Surgical edits**: Change only what needs changing. Don't rewrite the entire skill.
-- **Replace, don't accumulate**: If a new rule contradicts an old one, the new one wins.
-- **Actionable over abstract**: "Show code before explaining" is better than "源码优先".
-- **Keep skills lean**: If adding something, consider if something else can be removed.
+- **精准编辑**：只改需要改的，不要重写整个 skill。
+- **替换而非叠加**：新旧规则冲突时，新规则胜出，直接替换。
+- **可执行优于抽象**："先展示代码再解释"比"源码优先"更好。
+- **保持精炼**：如果要加东西，考虑能不能删掉别的。

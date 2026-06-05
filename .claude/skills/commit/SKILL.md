@@ -1,73 +1,70 @@
 ---
 name: commit
 description: >
-  Automatically stage, commit, and push changes to my-analysis/ and .claude/.
-  Use this skill after writing or editing tutorial documents, when the user says
-  "commit", or when uncommitted changes are detected in scope. Enforces: proper
-  commit message format, single-principle grouping, Chinese descriptions, and
-  automatic push.
+  自动暂存、提交并推送 my-analysis/ 和 .claude/ 的修改。写完文档后自动激活，
+  或用户直接说"提交"时激活。强制：正确的提交信息格式、单一原则分组、中文描述、
+  自动推送。
 ---
 
-# Git Auto-Commit
+# Git 自动提交
 
-This skill handles the git workflow for the RMDB project. Only commit files in
-`my-analysis/`, `.claude/`, `CLAUDE.md`, and `.gitignore`.
+处理 RMDB 项目的 git 提交流程。只提交 `my-analysis/`、`.claude/`、`CLAUDE.md`、`.gitignore`。
 
-## Workflow
+## 工作流
 
-### Step 1: Stage Changes
+### 第 1 步：暂存修改
 
 ```bash
 git add my-analysis/ .claude/ CLAUDE.md .gitignore
 ```
 
-Then check what's staged:
+查看暂存了哪些文件：
 ```bash
 git diff --cached --name-only
 ```
 
-If nothing is staged, report "没有需要提交的修改" and stop.
+如果没有任何暂存文件，报告"没有需要提交的修改"并停止。
 
-### Step 2: Classify Changes
+### 第 2 步：分类
 
-Determine the `action` and `keyword` for each logical change group:
+确定每个逻辑变更组的 `action` 和 `keyword`：
 
-**action** (what kind of change):
-| action | When to use |
-|--------|-------------|
-| `doc` | New doc, content addition, explanation reorder, error correction, diagrams |
-| `fix` | Factual error fix, wrong file path, wrong line number, diagram data error |
-| `ref` | Rename files, restructure directories, reorganize sections, unify formatting |
-| `file` | Move, delete, or copy files (pure file operations) |
-| `rule` | Update skills, CLAUDE.md, memory files, .claude/ config |
+**action**（什么类型的变更）：
 
-**keyword** (which area):
-- By layer: `architecture`, `storage`, `record`, `index`, `system`, `executor`
-- By operation: `rename`, `move`, `add`, `delete`
+| action | 何时使用 |
+|--------|---------|
+| `doc` | 新增文档、补充内容、调整讲解顺序、修正错误、加图表 |
+| `fix` | 修正事实性错误、代码引用路径错误、图表数据错误 |
+| `ref` | 重命名文件、调整目录结构、段落/章节重组、统一格式 |
+| `file` | 移动文件、删除文件、复制文件等纯文件层面操作 |
+| `rule` | 更新 skill、CLAUDE.md、memory 文件、.claude/ 配置 |
 
-### Step 3: Create Commits (Single Principle)
+**keyword**（哪个领域）：
+- 按层/模块：`architecture`、`storage`、`record`、`index`、`system`、`executor`
+- 按操作类型：`rename`、`move`、`add`、`delete`
 
-**One commit = one logical change.** Split commits when:
+### 第 3 步：单一原则提交
 
-- Different `action` types → MUST split
-- Different `keyword` modules → SHOULD split
-- Logically unrelated (e.g., "fix typo" + "add new chapter") → MUST split
+**一次提交只做一件事。** 拆分条件：
 
-Commit message format:
+- 不同 `action` → 必须分开提交
+- 不同 `keyword` → 建议分开提交
+- 逻辑不相关（比如"修正 typo"和"新增章节"）→ 必须分开提交
+
+提交信息格式：
 ```
-action(keyword): short Chinese description (~50 chars)
+action(keyword): 中文简述（约 50 字符）
 
-- detail-1
-- detail-2
+- 细节 1
+- 细节 2
 ```
 
-Rules:
-- Short description: one line, ~50 chars, Chinese, no period at end
-- Details: each line starts with `- `, one specific action per line
-- If the short description already says everything, skip details
-- Co-Authored-By line is appended automatically
+规则：
+- 简述：一行精简，约 50 字符，中文，不加句号
+- 细节：每条以 `- ` 开头，每条一个具体操作
+- 简述已说清时可省略细节
 
-Example:
+示例：
 ```
 doc(index): 补充 B+ 树插入与分裂流程
 
@@ -75,27 +72,26 @@ doc(index): 补充 B+ 树插入与分裂流程
 - 包含查找叶子节点、插入键值对、节点分裂的完整流程
 ```
 
-Use a heredoc for the commit message:
+用 heredoc 传提交信息：
 ```bash
 git commit -m "$(cat <<'EOF'
-action(keyword): description
+action(keyword): 简述
 
-- detail
+- 细节
 EOF
 )"
 ```
 
-### Step 4: Push
+### 第 4 步：推送
 
 ```bash
 git push
 ```
 
-Confirm to user: "已提交并推送" with the commit message summary.
+完成后告诉用户"已提交并推送"，附提交信息摘要。
 
-## Important
+## 注意事项
 
-- Only commit `my-analysis/`, `.claude/`, `CLAUDE.md`, `.gitignore`.
-- Never commit `src/` source code.
-- Never use `--no-verify` or skip hooks.
-- After every doc change, commit immediately — don't batch unrelated changes.
+- 只提交 `my-analysis/`、`.claude/`、`CLAUDE.md`、`.gitignore`，不提交 `src/` 源代码
+- 禁止使用 `--no-verify` 或跳过 hooks
+- 每次文档修改后立即提交，不要攒一批不相关的修改一起提交

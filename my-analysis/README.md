@@ -23,9 +23,9 @@
 | 第 2 章 | [记录层](./02-record-layer/README.md) | 记录格式、记录增删改查、空闲链表、扫描 |
 | 第 3 章 | [索引层](./03-index-layer/README.md) | B+ 树索引（编写中） |
 | 第 4 章 | [系统管理](./04-system-layer/README.md) | 元数据管理、DDL 执行、数据库生命周期、建表/建索引 |
-| 第 5 章 | 查询处理 | （待编写）解析、分析、优化、执行 |
-| 第 6 章 | 事务与并发 | （待编写）事务管理、锁管理 |
-| 第 7 章 | 故障恢复 | （待编写）日志、检查点、恢复 |
+| 第 5 章 | [查询处理](./05-query-processing/01-query-processing-overview.md) | （编写中）解析、分析、优化、执行 |
+| 第 6 章 | [事务与并发](./06-transaction-concurrency/01-transaction-concurrency-overview.md) | （编写中）事务管理、锁管理 |
+| 第 7 章 | [故障恢复](./07-recovery/01-recovery-overview.md) | （编写中）日志、检查点、恢复 |
 
 ## 如何使用本教程
 

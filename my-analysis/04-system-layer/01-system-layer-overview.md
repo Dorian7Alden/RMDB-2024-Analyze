@@ -95,6 +95,39 @@ std::unordered_map<std::string, std::unique_ptr<IxIndexHandle>> ihs_;
 
 执行器做 INSERT 时，通过 `sm_manager->fhs_["student"]` 就能直接拿到 student 表的记录文件句柄，不需要自己打开文件。
 
+## Context：贯穿所有操作的环境对象
+
+你可能注意到 SM 的很多方法都有一个 `Context* context` 参数。`Context` 是一个**贯穿 SQL 执行全流程的环境对象**，它随身携带了当前操作所需的 "运行时信息"。
+
+`src/common/context.h:22-41`
+
+```cpp
+class Context {
+ public:
+  Context(LockManager* lock_mgr, LogManager* log_mgr, Transaction* txn)
+      : lock_mgr_(lock_mgr), log_mgr_(log_mgr), txn_(txn) {}
+
+  LockManager* lock_mgr_;   // 锁管理器 — 加锁/解锁
+  LogManager* log_mgr_;     // 日志管理器 — 写 redo/undo 日志
+  Transaction* txn_;        // 当前事务 — 记录事务 ID 和状态
+  char* data_send_;         // 结果发送缓冲区 — 查询结果返回给客户端
+  int* offset_;             // 发送缓冲区的当前偏移量
+  bool ellipsis_;           // 结果是否被截断
+};
+```
+
+**作用**：`Context` 像一个"公文袋"，在 SQL 解析 → 语义分析 → 执行计划 → 执行器 → SM/RM/IX 的整条调用链上传递。每个环节可能往里面放东西，也可能从里面读东西。
+
+**在 SM 层的使用**：
+
+- `context->txn_` 传给 `insert_entry(key, rid, context->txn_)`——告诉 B+ 树当前是哪个事务在做插入，事务层用它做并发控制
+- `context->lock_mgr_` 用于加表级锁（在 SM 层大部分被注释掉了，锁的讨论留给事务层章节）
+- `context->data_send_` 用于 `show_tables` / `desc_table` 等查询操作，把结果格式化输出到客户端缓冲区
+
+**为什么 SM 层不直接用，还要往下传**：SM 自己不操作数据，但它调用的 RM 和 IX 层需要——`RmFileHandle::get_record(rid, context)` 需要 `context->txn_` 来判断并发冲突，`get_record` 拿到的数据要通过 `context->data_send_` 返回给客户端。
+
+**简短理解**：你现在只需要知道它是一个"环境参数"，随着 SQL 执行一路往下传，SM 层用 `context->txn_` 传事务 ID，其他暂时不用深究。事务和锁的细节会在后面的事务层章节展开。
+
 ## 与记录层、索引层的关系
 
 SM 层和 RM/IX 层是**管理者与被管理者**的关系：

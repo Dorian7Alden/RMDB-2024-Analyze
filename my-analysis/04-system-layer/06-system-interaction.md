@@ -5,14 +5,14 @@ SM 层不是孤立工作的——它是整个 DBMS 的"调度中心"，协调 RM
 ## SM 层的三个角色
 
 ```mermaid
-flowchart TD
-    subgraph role1["角色 1 DDL 执行者"]
-        style role1 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
-        QL["QlManager<br/>DDL 调度"] --> SM1["SmManager<br/>create_table / create_index ..."]
-        SM1 --> RM1["RmManager"]
-        SM1 --> IX1["IxManager"]
+flowchart LR
+    subgraph role3["角色 3 Schema 提供者"]
+        style role3 fill:#fef3c7,stroke:#f59e0b,color:#92400e
+        AZ["Analyze 语义分析"] --> DB["db_: DbMeta"]
+        PN["Planner 计划生成"] --> DB
+        OP["Optimizer 优化器"] --> DB
     end
-
+    
     subgraph role2["角色 2 句柄注册表"]
         style role2 fill:#d1fae5,stroke:#10b981,color:#065f46
         EXEC["InsertExecutor<br/>SeqScanExecutor<br/>IndexScanExecutor"] --> MAP["fhs_ / ihs_"]
@@ -20,11 +20,11 @@ flowchart TD
         MAP --> IX2["IxIndexHandle"]
     end
 
-    subgraph role3["角色 3 Schema 提供者"]
-        style role3 fill:#fef3c7,stroke:#f59e0b,color:#92400e
-        AZ["Analyze 语义分析"] --> DB["db_: DbMeta"]
-        PN["Planner 计划生成"] --> DB
-        OP["Optimizer 优化器"] --> DB
+    subgraph role1["角色 1 DDL 执行者"]
+        style role1 fill:#dbeafe,stroke:#3b82f6,color:#1e40af
+        QL["QlManager<br/>DDL 调度"] --> SM1["SmManager<br/>create_table / create_index ..."]
+        SM1 --> RM1["RmManager"]
+        SM1 --> IX1["IxManager"]
     end
 ```
 
@@ -69,6 +69,8 @@ BufferPoolManager* get_bpm() { return buffer_pool_manager_; }
 RmManager* get_rm_manager() { return rm_manager_; }
 IxManager* get_ix_manager() { return ix_manager_; }
 DiskManager* get_disk_manager() { return disk_manager_; }
+
+// 吐槽：为什么变量名格式不统一!!!
 ```
 
 **含义**：SM 是 RMDB 中**唯一持有所有管理器指针的类**。任何需要访问 RM、IX、Buffer Pool 的组件，都可以通过 `sm_manager_` 拿到对应的管理器。
@@ -160,6 +162,7 @@ SM 的 `flush_meta()` 只刷元数据，RM 的 `flush_file` 刷记录页面，IX
 ```mermaid
 flowchart TD
     subgraph upper["依赖 SM 的上层"]
+        direction TD
         style upper fill:#dbeafe,stroke:#3b82f6,color:#1e40af
         QL["QlManager<br/>调用 SM 的 DDL 方法"]
         EXEC["各类 Executor<br/>通过 SM 获取句柄"]
@@ -172,6 +175,7 @@ flowchart TD
     end
 
     subgraph lower["SM 依赖的下层"]
+        direction TD
         style lower fill:#d1fae5,stroke:#10b981,color:#065f46
         RM["RmManager<br/>记录文件操作"]
         IX["IxManager<br/>索引文件操作"]

@@ -124,6 +124,10 @@ cols[1] = (4,  {tab_name="student", name="name", len=32, offset=4})
 col_tot_len = 4 + 32 = 36   ← 键的总长度
 ```
 
+> 这里应该有两个 offset ：
+> - 第一个是存储时，key 键的偏移量，跟真实的索引存储相关，这里先建的是 age 的索引，所以为 0 ，然后创建的是 name ，由于 age 的 len 为 4 ，所以 name 的 offset 为 4
+> - 还有第二个 offset ，是存储在表结构中的 offset ，在表结构中， name 在 age 前面，并且由于还有一个 id 字段，所以 name 的 offset 为 4 ， age 的 offset 为 4+32=36
+
 构建键的代码就靠这两个偏移量：
 
 ```cpp

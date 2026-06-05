@@ -92,21 +92,62 @@ struct IndexMeta {
   std::string tab_name;                              // 索引所属表名称
   int col_tot_len = 0;                               // 索引字段长度总和
   int col_num = 0;                                   // 索引字段数量
-  std::vector<std::pair<int, ColMeta>> cols;          // 索引包含的字段
+  std::vector<std::pair<int, ColMeta>> cols;         // 索引包含的字段
   std::unordered_map<std::string, std::pair<int, ColMeta>> cols_map;
 };
 ```
 
-**含义**：`cols` 数组记录了这个索引由哪些字段组成，以及每个字段在键中的偏移量。
+**含义**：`cols` 数组记录了这个索引由哪些字段组成。`pair<int, ColMeta>` 中有**两个偏移量**，指向不同的维度：
 
-**示例**：`CREATE INDEX ON student(age, name)` 创建的索引：
+- `pair.first`（int）：字段在**索引键**中的偏移量——建索引时，键的哪个字节位置开始放这个字段的值
+- `ColMeta.offset`：字段在**表记录**中的偏移量——从记录的哪个字节位置读取这个字段的值
+
+**示例**：student 表 `(id INT, name STRING(32), age INT)`，记录布局：
 
 ```
-cols = [(0, {age, INT, 4, offset=36}), (4, {name, STRING, 32, offset=4})]
-col_tot_len = 36
+record->data（40 字节）
+| id (4B) | name (32B) | age (4B) |
+  偏移 0      偏移 4       偏移 36
 ```
 
-这意味着构建索引键时，先拷贝 age（4 字节，放在键的偏移 0 处），再拷贝 name（32 字节，放在键的偏移 4 处），最终键长 36 字节。
+`CREATE INDEX ON student(age, name)` 创建的索引：
+
+```
+cols[0] = (0,  {tab_name="student", name="age",  len=4,  offset=36})
+          ↑    ↑
+    键偏移 0   记录偏移 36 — 从记录的第 36 字节读 4 字节，放到键的第 0 字节
+
+cols[1] = (4,  {tab_name="student", name="name", len=32, offset=4})
+          ↑    ↑
+    键偏移 4   记录偏移 4 — 从记录的第 4 字节读 32 字节，放到键的第 4 字节
+
+col_tot_len = 4 + 32 = 36   ← 键的总长度
+```
+
+构建键的代码就靠这两个偏移量：
+
+```cpp
+// src/system/sm_manager.cpp:368-371
+for (auto& col_meta : col_metas) {
+  memcpy(key + offset, record->data + col_meta.offset, col_meta.len);
+  //     key + 键偏移    record + 记录偏移
+  offset += col_meta.len;
+}
+```
+
+最终键的布局：
+
+```
+key（36 字节）
+| age (4B) | name (32B) |
+  键偏移 0     键偏移 4
+```
+
+**为什么记录中 age 的偏移是 36**：age 是表的第 3 个字段，前面有 id(4 字节) + name(32 字节) = 36 字节。这个值在建表时就固定了，和索引定义无关。
+
+**为什么键中 age 的偏移是 0**：`CREATE INDEX ON student(age, name)` 把 age 放在第一个，所以键偏移从 0 开始。如果换成 `ON student(name, age)`，那就是 name 在键偏移 0、age 在键偏移 32。
+
+**核心**：记录偏移（读数据的地方）由建表决定，键偏移（写数据的地方）由建索引的字段顺序决定。两个偏移量各管各的。
 
 **`cols_map` 的作用**：通过字段名快速查找该字段在 `cols` 中的位置和偏移量，避免每次都遍历 `cols` 数组。
 

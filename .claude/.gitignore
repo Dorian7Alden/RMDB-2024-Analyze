@@ -1,3 +1,4 @@
 # Claude Code runtime files (not config, do not share)
 scheduled_tasks.lock
 settings.local.json
+.write-counter

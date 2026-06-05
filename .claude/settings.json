@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | while read -r f; do case \"$f\" in */my-analysis/*|*/.claude/skills/*|*/.claude/memory/*|*/CLAUDE.md|*/.gitignore) cd /home/dorian/repo/RMDB-2024-Analyze; if echo \"$f\" | grep -q \"my-analysis/00-architecture\"; then kw=\"architecture\"; elif echo \"$f\" | grep -q \"my-analysis/01-storage\"; then kw=\"storage\"; elif echo \"$f\" | grep -q \"my-analysis/02-record\"; then kw=\"record\"; elif echo \"$f\" | grep -q \"my-analysis/03-index\"; then kw=\"index\"; elif echo \"$f\" | grep -q \"my-analysis/04-system\"; then kw=\"system\"; elif echo \"$f\" | grep -q \"my-analysis/05-transaction\"; then kw=\"transaction\"; elif echo \"$f\" | grep -q \"my-analysis/06-execution\\|executor\"; then kw=\"executor\"; else kw=\"architecture\"; fi; git add \"$f\" && git commit -m \"doc(${kw}): 更新文档\" --no-gpg-sign 2>/dev/null && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"已自动提交: '\"$f\"'\"}}' || true ;; esac; done",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -84,18 +84,16 @@ EOF
 )"
 ```
 
-### 第 4 步：推送（仅用户明确要求时）
+### 第 4 步：推送
 
-用户说"推送"或"push"时才执行：
 ```bash
 git push
 ```
 
-完成后告诉用户"已推送"。
+完成后告诉用户"已提交并推送"。
 
 ## 注意事项
 
 - 只提交 `my-analysis/`、`.claude/`、`CLAUDE.md`、`.gitignore`，不提交 `src/` 源代码
 - 禁止使用 `--no-verify` 或跳过 hooks
-- PostToolUse hook 已处理每次 Write/Edit 后的自动提交，无需手动触发
-- 推送由用户手动控制
+- PostToolUse hook 已处理每次 Write/Edit 后的自动提交+推送

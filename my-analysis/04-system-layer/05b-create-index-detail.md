@@ -86,6 +86,55 @@ for (auto& col_name : col_names) {
 
 **含义**：把字段名字符串变成 `ColMeta` 对象，同时累加 `total_len`（索引键的总字节数）。
 
+> **`emplace_back` 和 `push_back` 有什么区别？**
+>
+> 给 `vector` 尾部加元素有三种写法：
+>
+> ```cpp
+> vector<ColMeta> col_metas;
+> ColMeta& col = *table_meta.get_col(col_name);
+>
+> // 写法 1：push_back — 先有对象，再拷进 vector
+> col_metas.push_back(col);
+>
+> // 写法 2：emplace_back + 已有对象 — 和 push_back 效果一样，也是拷贝
+> col_metas.emplace_back(col);
+>
+> // 写法 3：emplace_back + 构造参数 — 直接在 vector 内部原地构造，省掉拷贝
+> col_metas.emplace_back(col.tab_name, col.name, col.type, col.len, col.offset);
+> ```
+>
+> **本质区别**：
+> - `push_back(T&&)` / `push_back(const T&)` — 接收一个**已经构造好的对象**，拷贝或移动到 vector 内部
+> - `emplace_back(args...)` — 接收**构造参数**，在 vector 内部直接调用构造函数，不产生临时对象
+>
+> **这里为什么用的 `emplace_back(*iter)` 没有优势**：代码中 `*table_meta.get_col(col_name)` 返回的是已有的 `ColMeta` 引用，传给 `emplace_back` 时走的是**拷贝构造**——和 `push_back` 完全一样。等价于写法 2。
+>
+> 真正能发挥 `emplace_back` 优势的场景是**只需要构造参数、不想先构造临时对象**：
+>
+> ```cpp
+> // 好：直接原地构造，零拷贝
+> col_metas.emplace_back(tab_name, col_def.name, col_def.type, col_def.len, curr_offset);
+>
+> // 差：先构造临时 ColMeta，再拷进 vector
+> ColMeta col = {.tab_name = tab_name, ...};
+> col_metas.push_back(col);
+> ```
+>
+> **开销对比**：
+>
+> | 写法 | 临时对象 | 拷贝/移动 | 适用场景 |
+> |------|---------|----------|---------|
+> | `emplace_back(构造参数)` | 无 | 无 | 手头有构造参数时最优 |
+> | `push_back(已有对象)` | 1 次（已有） | 1 次拷贝 | 对象已经存在 |
+> | `emplace_back(已有对象)` | 1 次（已有） | 1 次拷贝 | 同上，无额外收益 |
+> | `push_back(std::move(obj))` | 1 次（已有） | 1 次移动 | 对象之后不再用 |
+>
+> **什么场景差异明显**：
+> - 对象**很大**（如长 string、嵌套容器）→ 拷贝贵，用构造参数版 `emplace_back` 省拷贝
+> - 对象**不可拷贝**（如 `unique_ptr`）→ `emplace_back` 是唯一选择，`push_back` 编译不过
+> - 对象像 `ColMeta` 这样就几个 `int` 和 `string`，建索引就几个字段 → 差异可忽略，但 `emplace_back` 是好习惯
+
 对于 `CREATE INDEX ON student(age)`：
 
 ```

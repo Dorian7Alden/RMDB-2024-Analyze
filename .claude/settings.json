@@ -8,6 +8,22 @@
             "type": "command",
             "command": "jq -r '.tool_input.file_path' | while read -r f; do case \"$f\" in */my-analysis/*|*/.claude/skills/*|*/.claude/memory/*|*/CLAUDE.md|*/.gitignore) cd /home/dorian/repo/RMDB-2024-Analyze; if echo \"$f\" | grep -q \"my-analysis/00-architecture\"; then kw=\"architecture\"; elif echo \"$f\" | grep -q \"my-analysis/01-storage\"; then kw=\"storage\"; elif echo \"$f\" | grep -q \"my-analysis/02-record\"; then kw=\"record\"; elif echo \"$f\" | grep -q \"my-analysis/03-index\"; then kw=\"index\"; elif echo \"$f\" | grep -q \"my-analysis/04-system\"; then kw=\"system\"; elif echo \"$f\" | grep -q \"my-analysis/05-transaction\"; then kw=\"transaction\"; elif echo \"$f\" | grep -q \"my-analysis/06-execution\\|executor\"; then kw=\"executor\"; else kw=\"architecture\"; fi; git add \"$f\" && git commit -m \"doc(${kw}): 更新文档\" --no-gpg-sign 2>/dev/null && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"已自动提交: '\"$f\"'\"}}' || true ;; esac; done",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | grep -qE 'my-analysis/|\\.claude/skills/|\\.claude/memory/' && { f=/home/dorian/repo/RMDB-2024-Analyze/.claude/.write-counter; c=$(cat \"$f\" 2>/dev/null || echo 0); c=$((c+1)); echo \"$c\" > \"$f\"; if [ \"$c\" -ge 3 ]; then echo 0 > \"$f\"; echo '{\"systemMessage\":\"已修改多个文档，建议运行 maintain skill 检查\",\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"已累计修改3+个文档。建议激活 maintain skill 检查交叉引用和格式一致性。说\"维护文档\"即可。\"}}'; fi; } || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat /home/dorian/.claude/projects/-home-dorian-repo-RMDB-2024-Analyze/memory/observed_*.md 2>/dev/null | head -200 && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"以上是跨会话的观察记录。如果用户提到相关话题，可以提及已有观察。\"}}' || true",
+            "timeout": 10
           }
         ]
       }

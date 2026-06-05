@@ -123,7 +123,7 @@ flowchart TD
 页面内部（4096 字节）：
 ┌──────────────────┬───────────────────────────┬──────────────────────────┐
 │ IxPageHdr        │ keys[0..btree_order]      │ rids[0..btree_order]     │
-|                  | 键数组，keys_size 字节    | 孩子指针数组               │
+|                  | 键数组，keys_size 字节      | 孩子指针数组               │
 │ parent num_key   │                           │                          │
 │ is_leaf          │ col_tot_len x (order+1)   │ sizeof(Rid) x (order+1)  │
 │ prev next        │                           │                          │

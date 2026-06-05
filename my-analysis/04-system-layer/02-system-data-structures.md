@@ -16,6 +16,7 @@ flowchart LR
     end
 
     subgraph tab["TabMeta 表元数据"]
+        direction LR
         style tab fill:#d1fae5,stroke:#10b981,color:#065f46
         TNAME["name 表名称"]
         COLS["cols 字段列表<br/>vector ColMeta"]
@@ -25,6 +26,7 @@ flowchart LR
     end
 
     subgraph col["ColMeta 字段元数据"]
+        direction LR
         style col fill:#fef3c7,stroke:#f59e0b,color:#92400e
         CTAB["tab_name 所属表名"]
         CNAME["name 字段名"]
@@ -34,6 +36,7 @@ flowchart LR
     end
 
     subgraph ix["IndexMeta 索引元数据"]
+        direction LR
         style ix fill:#fce7f3,stroke:#ec4899,color:#9d174d
         ITAB["tab_name 所属表名"]
         ITLEN["col_tot_len 键总长度"]
@@ -288,4 +291,4 @@ flowchart TD
 | `ColDef` | `src/system/sm_manager.h` | 21-25 |
 | `SmManager` 成员 | `src/system/sm_manager.h` | 28-39 |
 
-上一节：[01-system-layer-overview.md](./01-system-layer-overview.md) | 下一节：[03-database-operations.md](./03-database-operations.md)（待编写）
+上一节：[01-system-layer-overview.md](./01-system-layer-overview.md)（待编写） | 下一节：[03-database-operations.md](./03-database-operations.md)

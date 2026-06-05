@@ -244,4 +244,4 @@ void SmManager::drop_db(const std::string& db_name) {
 
 核心设计理念：**数据库 = 目录，表 = 文件，元数据 = db.meta 文本**。简单直接，没有复杂的二进制格式。
 
-上一节：[02-system-data-structures.md](./02-system-data-structures.md) | 下一节：[04-table-operations.md](./04-table-operations.md)（待编写）
+上一节：[02-system-data-structures.md](./02-system-data-structures.md) | 下一节：[04-table-operations.md](./04-table-operations.md)

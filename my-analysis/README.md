@@ -22,7 +22,7 @@
 | 第 1 章 | [存储层](./01-storage-layer/README.md) | Disk Manager、Page、Buffer Pool、LRU、Page Guard、RWLatch |
 | 第 2 章 | [记录层](./02-record-layer/README.md) | 记录格式、记录增删改查、空闲链表、扫描 |
 | 第 3 章 | [索引层](./03-index-layer/README.md) | B+ 树索引（编写中） |
-| 第 4 章 | 系统管理 | （待编写）元数据管理、DDL |
+| 第 4 章 | [系统管理](./04-system-layer/README.md) | 元数据管理、DDL 执行、数据库生命周期、建表/建索引 |
 | 第 5 章 | 查询处理 | （待编写）解析、分析、优化、执行 |
 | 第 6 章 | 事务与并发 | （待编写）事务管理、锁管理 |
 | 第 7 章 | 故障恢复 | （待编写）日志、检查点、恢复 |

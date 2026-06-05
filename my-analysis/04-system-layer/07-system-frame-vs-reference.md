@@ -175,4 +175,4 @@ for (size_t i = 0; i < tab.cols.size(); ++i) {
 - **`show_indexs`**：查询表上所有索引。虽然是只读操作，但 SM 作为元数据管理者自然应该提供。
 - **`redo_index`**：恢复时重建索引。框架不支持恢复，但参考实现的恢复模块需要这个接口。
 
-上一节：[06-system-interaction.md](./06-system-interaction.md) | 下一节：[08-system-api-reference.md](./08-system-api-reference.md)（待编写）
+上一节：[06-system-interaction.md](./06-system-interaction.md) | 下一节：[08-system-api-reference.md](./08-system-api-reference.md)

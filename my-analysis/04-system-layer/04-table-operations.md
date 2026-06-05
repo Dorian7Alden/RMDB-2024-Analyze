@@ -246,4 +246,4 @@ DROP TABLE student
 
 SM 层做"决策"（字段名、类型、长度、偏移量），RM 层做"执行"（创建文件、管理页面）。两者分工明确——SM 管元数据，RM 管数据。
 
-上一节：[03-database-operations.md](./03-database-operations.md) | 下一节：[05-index-operations.md](./05-index-operations.md)（待编写）
+上一节：[03-database-operations.md](./03-database-operations.md) | 下一节：[05-index-operations.md](./05-index-operations.md)

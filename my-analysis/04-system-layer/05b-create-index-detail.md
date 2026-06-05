@@ -297,4 +297,4 @@ Rid{1,1}: id=2, name="Bob",   age=22
 
 之后 `SELECT * FROM student WHERE age = 20` 就可以通过 B+ 树查找 key=20，定位到 Rid{1,0}，再去记录层读数据。
 
-上一节：[05-index-operations.md](./05-index-operations.md) | 下一节：[06-system-interaction.md](./06-system-interaction.md)（待编写）
+上一节：[05-index-operations.md](./05-index-operations.md) | 下一节：[06-system-interaction.md](./06-system-interaction.md)

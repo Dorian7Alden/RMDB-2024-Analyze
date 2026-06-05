@@ -120,4 +120,4 @@ flush_meta();
 
 **框架对比**：框架没有 `redo_index` 方法。这是参考实现为支持恢复功能额外添加的。
 
-上一节：[04-table-operations.md](./04-table-operations.md) | 下一节：[05b-create-index-detail.md](./05b-create-index-detail.md)（待编写）
+上一节：[04-table-operations.md](./04-table-operations.md) | 下一节：[05b-create-index-detail.md](./05b-create-index-detail.md)

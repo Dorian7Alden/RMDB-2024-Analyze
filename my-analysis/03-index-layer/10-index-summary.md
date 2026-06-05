@@ -4,7 +4,7 @@
 
 ```
 IxManager → IxIndexHandle → IxNodeHandle → IxScan
-(文件管理)  (B+树操作)     (节点操作)    (范围扫描)
+(文件管理)     (B+树操作)       (节点操作)    (范围扫描)
 ```
 
 ## 各模块框架状态与学习要点
@@ -35,4 +35,4 @@ IxManager → IxIndexHandle → IxNodeHandle → IxScan
 
 上一节：[09-index-api-reference.md](./09-index-api-reference.md)
 
-下一章：[第 4 章：系统管理](../04-system-layer/README.md)（待编写）
+下一章：[第 4 章：系统管理](../04-system-layer/README.md)

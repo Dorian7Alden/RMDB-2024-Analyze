@@ -185,4 +185,4 @@ flowchart TD
 
 SM 是系统的"中轴"——对上提供服务和信息，对下协调各层工作。
 
-上一节：[05b-create-index-detail.md](./05b-create-index-detail.md) | 下一节：[07-system-frame-vs-reference.md](./07-system-frame-vs-reference.md)（待编写）
+上一节：[05b-create-index-detail.md](./05b-create-index-detail.md) | 下一节：[07-system-frame-vs-reference.md](./07-system-frame-vs-reference.md)

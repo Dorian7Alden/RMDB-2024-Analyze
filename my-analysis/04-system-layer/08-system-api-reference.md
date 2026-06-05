@@ -141,4 +141,4 @@ SM 层核心接口一览，方便快速回顾。
 | 索引文件 | `student_age.idx` | `表名_字段1_字段2.idx` |
 | 数据库目录 | `student_db/` | 数据库名即目录名 |
 
-上一节：[07-system-frame-vs-reference.md](./07-system-frame-vs-reference.md) | 下一节：[09-system-summary.md](./09-system-summary.md)（待编写）
+上一节：[07-system-frame-vs-reference.md](./07-system-frame-vs-reference.md) | 下一节：[09-system-summary.md](./09-system-summary.md)

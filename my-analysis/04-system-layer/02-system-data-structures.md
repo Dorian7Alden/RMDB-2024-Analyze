@@ -236,6 +236,67 @@ friend std::istream& operator>>(std::istream& is, TabMeta& tab) {
 
 **DbMeta 自身的序列化同理**——写出时先写 `name_` 再写 `tabs_` 的大小，然后逐个 TabMeta 写出。
 
+### 具体例子：db.meta 长什么样
+
+假设 `student_db` 中有一张 student 表（id INT 4 字节，name STRING 32 字节），建了一个 `student_name.idx` 索引。关闭数据库后，`db.meta` 的实际内容：
+
+```
+student_db
+1
+student
+2
+student id 0 4 0
+student name 2 32 4
+1
+student_name.idx
+student 32 1
+student name 2 32 4
+```
+
+每一行的含义：
+
+```
+行 1:  student_db          ← DbMeta::name_（数据库名）
+行 2:  1                   ← tabs_ 数量
+
+  ── student 表 ──
+行 3:  student             ← TabMeta::name（表名）
+行 4:  2                   ← cols 数量
+行 5:  student id 0 4 0    ← ColMeta: tab_name="student", name="id", type=0(INT), len=4, offset=0
+行 6:  student name 2 32 4 ← ColMeta: tab_name="student", name="name", type=2(STRING), len=32, offset=4
+行 7:  1                   ← indexes 数量
+行 8:  student_name.idx    ← 索引名（IndexMeta 在 map 中的 key）
+
+  ── student_name.idx 索引 ──
+行 9:  student 32 1        ← IndexMeta: tab_name="student", col_tot_len=32, col_num=1
+行 10: student name 2 32 4 ← 索引中的 ColMeta: name="name", type=2, len=32, offset=4
+```
+
+如果 database 是空的（只有 `create_db` 后还没建表），`db.meta` 只有两行：
+
+```
+student_db
+0
+```
+
+**解析靠什么**：没有 magic number、没有二进制头、没有分隔符标记——全靠 `operator>>` 的调用顺序。
+
+C++ stream 遇到空格和换行都会分隔，所以一行写一个字段还是用空格分隔效果一样。`operator>>` 的嵌套调用链决定了谁读下一段文本：
+
+```
+DbMeta::operator>> 读 "student_db" 和 "1"
+  └─→ TabMeta::operator>> 读 "student" 和 "2"
+        └─→ ColMeta::operator>> 读 "student id 0 4 0"（5 个字段）
+        └─→ ColMeta::operator>> 读 "student name 2 32 4"
+        └─→ 读 "1" 和 "student_name.idx"
+        └─→ IndexMeta::operator>> 读 "student 32 1"
+              └─→ ColMeta::operator>> 读 "student name 2 32 4"
+```
+
+**必须对称**：写的嵌套顺序和读的嵌套顺序必须一致——每个 `operator<<` 写出的内容，由同一个 struct 的 `operator>>` 读回。顺序错位，整棵元数据树就全乱套了。
+
+**辅助结构不用写**：`cols_map`、`index_names_map` 不在文件中，读入后从 `cols` 和 `indexes` 重建。避免冗余也避免不一致。
+
 ## 元数据层次回顾
 
 ```mermaid

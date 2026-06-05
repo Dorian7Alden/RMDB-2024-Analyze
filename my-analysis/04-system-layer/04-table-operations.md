@@ -70,6 +70,22 @@ struct ColDef {
 
 `ColDef` 是用户输入（来自 SQL），`ColMeta` 是系统内部表示。两者的区别在于 `ColMeta` 多了 `offset`（记录内偏移量）和 `tab_name`（所属表名）。
 
+> **`.tab_name = ...` 是什么语法？** 这是 C++20 的**指定初始化器**（designated initializer），用 `.字段名 = 值` 按名称给结构体成员赋值，而不是按声明顺序。
+>
+> ```cpp
+> // 传统写法：必须按 struct 声明顺序，第几个值对应哪个字段全靠数
+> ColMeta col = {tab_name, col_def.name, col_def.type, col_def.len, curr_offset};
+> 
+> // C++20 写法：按名赋值，顺序无关，可读性更强
+> ColMeta col = {.tab_name = tab_name,
+>                .name = col_def.name,
+>                .type = col_def.type,
+>                .len = col_def.len,
+>                .offset = curr_offset};
+> ```
+>
+> 这个语法 C99 就有了，C++ 在 C++20 正式引入。
+
 **偏移量计算示例**：
 
 `CREATE TABLE student (id INT, name STRING(32), age INT)`：

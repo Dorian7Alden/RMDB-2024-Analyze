@@ -93,11 +93,60 @@ flowchart TD
 
 **实现**：框架中为空，参考实现（`src/index/ix_index_handle.cpp:270`）：
 
-1. 读根节点（加读锁/写锁）
-2. 循环：当前不是叶节点 → 调用 `internal_lookup(key)` 找下一个孩子
+1. 读根节点，根据操作类型加读锁（FIND）或写锁（INSERT/DELETE）
+2. 循环：当前不是叶节点 → 调用 `internal_lookup(key)` 找下一个孩子 → 给孩子加锁 → 判断孩子是否"安全"
 3. 到达叶节点 → 返回
 
-**关键点**：锁缩放（latch crabbing）——向下遍历时先给子节点加锁，如果子节点安全（不会分裂/合并）则释放父节点锁，提高并发。查找操作用读锁，插入/删除操作用写锁。详见 [03-index-node-handle.md](./03-index-node-handle.md)。
+**锁缩放（latch crabbing）**：查找对并发的影响最大——如果每次操作都把从根到叶的整条路径锁住，其他操作全部要排队。锁缩放的名字很形象：像螃蟹走路，**抓住下一级节点后，才松开上一级**。
+
+具体流程（以插入为例）：
+
+```
+1. root_latch_.lock()              // 先锁根互斥锁，防止根被其他线程分裂
+2. 加载根节点 node
+3. node->page->WLatch()            // 对根节点页面加写锁
+4. if (node->isSafe(INSERT))       // 根 isSafe 总是 true
+      root_latch_.unlock()         // 释放根互斥锁
+
+5. 循环向下:
+   a. child_node = fetch_node(下一级)
+   b. child_node->page->WLatch()               // 先锁住孩子
+   c. 把 node 加入 latch_page_set               // 记录已加锁的祖先
+   d. if (child_node->isSafe(INSERT))           // 孩子安全？
+        release_all_index_latch_page(txn)       // → 释放所有祖先的锁！
+   e. node = child_node                         // 继续向下
+
+6. 到达叶节点，返回
+```
+
+**关键转折**在步骤 5d：如果孩子节点 `isSafe`，说明孩子不会分裂，那祖先节点的结构都不会变——释放祖先锁，让其他线程可以访问。
+
+如果孩子节点不安全（比如插入后会满），就**保留祖先锁**。因为孩子一旦分裂，需要修改父节点（插入新的分隔键），父节点如果之前被释放了，其他线程可能正在改它，就出问题了。
+
+> **isSafe 的判断逻辑**：非根节点上，插入时 `size + 1 < max` 才算安全，删除时 `size > min` 才算安全。根节点一律返回 true——不是因为根不会分裂，而是根的分裂由专门的 `root_latch_` 互斥锁处理。详见 [03-index-node-handle.md](./03-index-node-handle.md)。
+
+**一个具体例子**：
+
+```
+要插入 key=45，当前树状态：
+  根节点 [40, 70]，已满（size=2, max=2）
+  中间节点 [50, 62]，未满（size=2, max=3）
+  目标叶节点 [40, 45, 50]，已满（size=3, max=3）
+
+加锁过程：
+1. WLock 根 → isSafe(根) = true → 释放 root_latch_
+2. 下行到中间节点 [50, 62] → WLock 它 → isSafe([50,62])?
+   size=2, max=3 → 2+1 < 3 = true → SAFE
+   → 释放根的 WLock！
+3. 下行到叶节点 [40, 45, 50] → WLock 它 → isSafe([40,45,50])?
+   size=3, max=3 → 3+1 < 3 = false → NOT SAFE
+   → 保留中间节点的 WLock
+4. 在叶节点插入 key=45，触发分裂
+5. 分裂需要修改父节点 [50, 62] → 它的锁还拿着，安全！
+```
+
+没有锁缩放的话，步骤 1~4 根和中间节点都被锁着，其他线程全堵住。
+有了锁缩放，步骤 2 就释放了根锁，步骤 3 只保留中间节点的锁，并发度大幅提升。
 
 ## internal_lookup：内部节点查孩子
 
@@ -175,10 +224,10 @@ bool get_value(const char* key, std::vector<Rid>* result, Transaction* transacti
 > 存储层面：叶节点的 keys 数组按排序存放，相同 key 的多个条目并排在一起：
 >
 > ```
-> keys: [18, 20, 20, 20, 21, 21, 25]
+> keys: [18,  20,  20,  20,  21,  21, 25]
 > rids: [r1,  r2,  r3,  r4,  r5,  r6, r7]
->        ↑        三个 key=20       ↑ 两个 key=21
->          各配不同的 Rid
+>                   ↑           ↑ 
+>              三个 key=20   两个 key=21      各配不同的 Rid
 > ```
 >
 > 每个位置存的是一个 **(key, rid) 对**，不是"一个 key 映射到多个 rid"。同一个 key 出现了多次，每次配一个不同的 Rid。

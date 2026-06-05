@@ -53,6 +53,22 @@ void SmManager::create_table(const std::string& tab_name,
 }
 ```
 
+> **`.tab_name = ...` 是什么语法？** 这是 C++20 的**指定初始化器**（designated initializer），用 `.字段名 = 值` 按名称给结构体成员赋值，而不是按声明顺序。
+>
+> ```cpp
+> // 传统写法：必须按 struct 声明顺序，第几个值对应哪个字段全靠数
+> ColMeta col = {tab_name, col_def.name, col_def.type, col_def.len, curr_offset};
+> 
+> // C++20 写法：按名赋值，顺序无关，可读性更强
+> ColMeta col = {.tab_name = tab_name,
+>                .name = col_def.name,
+>                .type = col_def.type,
+>                .len = col_def.len,
+>                .offset = curr_offset};
+> ```
+>
+> 这个语法 C99 就有了，C++ 在 C++20 正式引入。
+
 ### 第一阶段：构建字段元数据
 
 **输入**：`ColDef` 数组（来自 SQL 解析）。`ColDef` 只含 name、type、len。
@@ -69,22 +85,6 @@ struct ColDef {
 ```
 
 `ColDef` 是用户输入（来自 SQL），`ColMeta` 是系统内部表示。两者的区别在于 `ColMeta` 多了 `offset`（记录内偏移量）和 `tab_name`（所属表名）。
-
-> **`.tab_name = ...` 是什么语法？** 这是 C++20 的**指定初始化器**（designated initializer），用 `.字段名 = 值` 按名称给结构体成员赋值，而不是按声明顺序。
->
-> ```cpp
-> // 传统写法：必须按 struct 声明顺序，第几个值对应哪个字段全靠数
-> ColMeta col = {tab_name, col_def.name, col_def.type, col_def.len, curr_offset};
-> 
-> // C++20 写法：按名赋值，顺序无关，可读性更强
-> ColMeta col = {.tab_name = tab_name,
->                .name = col_def.name,
->                .type = col_def.type,
->                .len = col_def.len,
->                .offset = curr_offset};
-> ```
->
-> 这个语法 C99 就有了，C++ 在 C++20 正式引入。
 
 **偏移量计算示例**：
 
@@ -115,7 +115,36 @@ for (size_t i = 0; i < tab.cols.size(); ++i) {
 
 **为什么需要**：Analyze 阶段解析 SQL 时，对 `SELECT name FROM student` 中的 `name`，需要确认 student 表确实有这个字段。`get_col("name")` 通过 `cols_map` 做 O(1) 查找。
 
-**框架对比**：框架没有这段代码，`get_col` 只能遍历 `cols` 做 O(n) 查找。对于列数多的宽表，每次列引用都做线性扫描会累积可观的性能开销。
+> **`emplace` 和 `insert` 有什么区别？**
+>
+> `unordered_map` 存的是 `pair<const Key, Value>`。插入一个键值对有几种写法：
+>
+> ```cpp
+> // 写法 1：insert + make_pair — 构造两次 pair，一次临时、一次内部
+> cols_map.insert(std::make_pair(tab.cols[i].name, i));
+>
+> // 写法 2：insert + 初始化列表 — 一次 pair 构造
+> cols_map.insert({tab.cols[i].name, i});
+>
+> // 写法 3：emplace — 直接在 map 内部原地构造 pair，省掉临时对象
+> cols_map.emplace(tab.cols[i].name, i);
+> ```
+>
+> `emplace` 的原理是"**转发构造**"——它把参数原样转发给 `pair` 的构造函数，在 map 内部直接构造出键值对，不产生任何临时 `pair` 对象。
+>
+> `insert` 则是先在外面构造好一个临时 `pair`，再**拷贝或移动**进 map。多了一次构造 + 一次析构。
+>
+> **开销对比**：
+>
+> | 写法 | 临时 pair | 拷贝/移动 | 说明 |
+> |------|----------|----------|------|
+> | `insert(make_pair(k, v))` | 1 次 | 至少 1 次拷贝 | 最重 |
+> | `insert({k, v})` | 1 次 | 1 次移动 | 较轻 |
+> | `emplace(k, v)` | 无 | 无 | 最轻 |
+>
+> 这里 `tab.cols[i].name` 是 `std::string`，每次拷贝都有内存分配开销。`emplace` 虽然省了临时 pair，但 `string` 本身还是要拷贝进 map（作为 key）。如果 key 是已经构造好的 string，那无论用哪种方法都省不掉 key 的拷贝。
+>
+> **什么场景区别明显**：当 key 或 value 是**大对象**或**不可拷贝**的类型（如 `unique_ptr`）时，`emplace` 的优势最明显。对于这里的 `string + int`，几列的建表场景差别可以忽略，但用 `emplace` 是好习惯。
 
 ### 第三阶段：创建记录文件
 

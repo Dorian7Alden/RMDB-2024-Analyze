@@ -102,10 +102,6 @@ flowchart TD
     class LH sentinel
 ```
 
-
-![B+ Tree](https://gitee.com/Seniorsy/pic-go/raw/master/typora/4535dfgd.png)
-
-
 **从逻辑拓扑图可以看出**：
 - 一棵 3 层的 B+ 树：根（1 个）→ 内部节点（3 个）→ 叶节点（9 个），共 15 页
 - 内部节点（蓝底）只存分隔键和孩子指针，不存实际数据
@@ -114,6 +110,12 @@ flowchart TD
 - 每个节点的 `parent` 字段指回父节点，根节点的 `parent = -1`
 - 文件头（黄底）记录整棵树的全局信息：`root_page` 指向根节点，`first_leaf`/`last_leaf` 指向叶节点链表首尾
 - 第 1 页（灰底哨兵）不出现在查找路径中，它是叶节点链表的逻辑哨兵，`first_leaf` 指向的才是第一个真正的叶节点
+
+> **补充图解**：下面是同一棵 B+ 树在另一种可视化工具中的呈现，帮助理解 B+ 树的整体形态：
+> 
+> ![B+ Tree](https://gitee.com/Seniorsy/pic-go/raw/master/typora/4535dfgd.png)
+> 
+> 两张图展示的是同一棵树，上图侧重逻辑拓扑（谁指向谁、链表怎么串），下图侧重物理形态（节点的宽度、树的层数）。对照着看更容易建立直觉。
 
 **每个页面内部**都是三段式布局：
 

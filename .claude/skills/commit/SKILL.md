@@ -1,14 +1,16 @@
 ---
 name: commit
 description: >
-  自动暂存、提交并推送 my-analysis/ 和 .claude/ 的修改。写完文档后自动激活，
-  或用户直接说"提交"时激活。强制：正确的提交信息格式、单一原则分组、中文描述、
-  自动推送。
+  自动暂存并提交 my-analysis/ 和 .claude/ 的修改。写完文档后 PostToolUse hook
+  会自动 git add + commit，也可由用户手动说"提交"激活。需要推送时用户说"推送"。
+  强制：正确的提交信息格式、单一原则分组、中文描述。
 ---
 
-# Git 自动提交
+# Git 提交
 
 处理 RMDB 项目的 git 提交流程。只提交 `my-analysis/`、`.claude/`、`CLAUDE.md`、`.gitignore`。
+
+**自动提交**：写完文档后，PostToolUse hook 自动暂存并提交修改。提交信息为基本格式，如需修改可用 `git commit --amend`。
 
 ## 工作流
 
@@ -82,16 +84,18 @@ EOF
 )"
 ```
 
-### 第 4 步：推送
+### 第 4 步：推送（仅用户明确要求时）
 
+用户说"推送"或"push"时才执行：
 ```bash
 git push
 ```
 
-完成后告诉用户"已提交并推送"，附提交信息摘要。
+完成后告诉用户"已推送"。
 
 ## 注意事项
 
 - 只提交 `my-analysis/`、`.claude/`、`CLAUDE.md`、`.gitignore`，不提交 `src/` 源代码
 - 禁止使用 `--no-verify` 或跳过 hooks
-- 每次文档修改后立即提交，不要攒一批不相关的修改一起提交
+- PostToolUse hook 已处理每次 Write/Edit 后的自动提交，无需手动触发
+- 推送由用户手动控制

@@ -132,17 +132,87 @@ Condition
 
 ### Value
 
-**含义**：`Value`（`src/common/common.h:45-164`）是运行时的值表示——包含类型、数值、以及序列化后的原始字节。
+**含义**：`Value`（`src/common/common.h:45-164`）是运行时的值表示——把 SQL 中的字面量（`18`、`3.14`、`'Tom'`）包装成程序可以直接使用和比较的对象。
+
+**为什么需要两层表示**：数据库里所有数据最终都以原始字节形式存储在磁盘上。执行层的算子在做比较时（如 `WHERE age > 18`），拿到的也是原始字节。所以 Value 既要保留 C++ 层面的类型化值（方便在 Analyze 阶段做类型检查），又要把它转成和磁盘格式一致的字节数组（方便执行层直接做字节级比较）。
+
+```
+以 WHERE age > 18 为例，值 18 在系统中的形态：
+
+Parser阶段:
+  IntLit(val=18)                         ← AST 节点，只是"语法上知道这是整数"
+
+Analyze阶段 (Value):
+  ┌─────────────────────────────────────┐
+  │ type = TYPE_INT                     │  ← 类型标记
+  │ int_val = 18                        │  ← C++ 层面的值，用于类型检查
+  │ raw ──→ RmRecord                    │  ← 序列化后的字节，供执行层使用
+  │           ├── data: [12 00 00 00]   │  ← 4 字节，18 的二进制表示
+  │           └── size: 4               │  ← 占用 4 字节
+  └─────────────────────────────────────┘
+
+执行层:
+  从记录中读 age 列的 4 个字节 → 和 raw.data 的 4 个字节逐字节比较
+```
+
+**作用**：Analyze 阶段用 `int_val` / `float_val` / `str_val` 做类型检查和兼容性判断（比如 INT 是否能赋给 FLOAT 列）。然后调用 `init_raw()` 把值序列化，执行层直接用 `raw` 的字节数组和记录中的字段数据做 `memcmp` 式比较。
+
+**三种类型的 Value 示例**：
+
+**INT 类型**——`WHERE age > 18` 中的 `18`：
 
 ```
 Value
-├── type: ColType         -- TYPE_INT / TYPE_FLOAT / TYPE_STRING
-├── int_val / float_val   -- 数值（union）
-├── str_val: string       -- 字符串值
-└── raw: shared_ptr<RmRecord>  -- 序列化后的原始字节
+├── type: TYPE_INT
+├── int_val: 18                          ← C++ 层面的值
+└── raw
+    ├── data: [12, 00, 00, 00]           ← 4 字节，18 的小端序二进制
+    └── size: 4
 ```
 
-**作用**：`Value` 不仅存储值本身，还通过 `init_raw()` 方法将值序列化为记录格式的字节数组，供后续执行阶段直接使用。
+**FLOAT 类型**——`WHERE score > 85.5` 中的 `85.5`：
+
+```
+Value
+├── type: TYPE_FLOAT
+├── float_val: 85.5f                     ← C++ 层面的值
+└── raw
+    ├── data: [00, 00, AB, 42]           ← 4 字节，85.5 的 IEEE 754 表示
+    └── size: 4
+```
+
+**STRING 类型**——`WHERE name = 'Tom'` 中的 `'Tom'`：
+
+```
+Value
+├── type: TYPE_STRING
+├── str_val: "Tom"                       ← C++ 层面的值
+└── raw
+    ├── data: [T, o, m, 0, 0, ...]       ← 补齐到列定义的长度（如 CHAR(10) 则为 10 字节）
+    └── size: 10                         ← 长度由列元数据决定
+```
+
+`init_raw()` 的作用就是做这个转换（`src/common/common.h:133-148`）：
+
+```cpp
+// src/common/common.h:133-148
+void init_raw(int len) {
+    raw = std::make_shared<RmRecord>(len);   // 分配 len 字节的空间
+    if (type == TYPE_INT) {
+        *(int*)(raw->data) = int_val;        // 把 int_val 的 4 字节拷贝进去
+    } else if (type == TYPE_FLOAT) {
+        *(float*)(raw->data) = float_val;    // 把 float_val 的 4 字节拷贝进去
+    } else if (type == TYPE_STRING) {
+        memset(raw->data, 0, len);           // 先清零
+        memcpy(raw->data, str_val.c_str(),   // 再把字符串内容拷贝进去
+               str_val.size());
+    }
+}
+```
+
+**含义**：`init_raw()` 就是把 C++ 类型的值"拍扁"成字节数组——跟记录在磁盘上存储的格式完全一致。
+
+**场景**：Analyze 的 `check_clause()` 在验证完类型兼容性后，调用 `cond.rhs_val.init_raw(len)` 完成序列化。后续 SeqScanExecutor 扫描每条记录时，直接用 `memcmp` 比较记录中字段的字节和 `raw.data` 中的字节，不需要再知道"这是什么类型"。这样的设计让执行层完全不关心数据类型，只做字节级比较。
 
 ## 入口函数 do_analyze()
 

@@ -119,4 +119,14 @@ student.db:
 - 记录文件用 `RmFileHdr`，索引文件用 `IxFileHdr`
 - 文件头绕过缓冲池，直接由 Disk Manager 读写，触发时机只有创建、关闭、检查点
 
+## Hdr vs Meta：先睹为快
+
+`RmFileHdr` 和 `IxFileHdr` 属于 **Hdr（Header）家族**——物理的、面向磁盘的结构，用原始类型描述数据在磁盘上的组织方式。
+
+后面第 4 章系统层会遇到另一类结构——`DbMeta`、`TabMeta`、`ColMeta`、`IndexMeta`，它们属于 **Meta（Metadata）家族**——逻辑的、面向内存的结构，用 C++ 标准容器描述数据库的 schema 信息。
+
+两者的共同点：都是"描述数据的数据"。区别在于描述的是什么——Hdr 描述**物理存储布局**，Meta 描述**逻辑数据模式**。
+
+详细对比见第 4 章：[02. 系统数据结构 → Hdr vs Meta 对比](../04-system-layer/02-system-data-structures.md#hdr-vs-meta)。
+
 下一节：[03. 页面数据结构](./03-page.md)

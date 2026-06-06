@@ -342,6 +342,57 @@ DbMeta::operator>> 读 "student_db" 和 "1"
 
 **辅助结构不用写**：`cols_map`、`index_names_map` 不在文件中，读入后从 `cols` 和 `indexes` 重建。避免冗余也避免不一致。
 
+<a id="hdr-vs-meta"></a>
+## Hdr vs Meta："元数据"的两种形态
+
+前三章你见过了 `RmFileHdr`、`RmPageHdr`、`IxFileHdr`、`IxPageHdr` 这些 **Hdr** 结构。
+
+本章遇到了 `DbMeta`、`TabMeta`、`ColMeta`、`IndexMeta` 这些 **Meta** 结构。
+
+它们都叫"元数据"——都是描述数据的数据。
+
+但 RMDB 用两套命名把它们分开了。
+
+### 全景对照
+
+| 维度 | Hdr（物理头） | Meta（逻辑元数据） |
+|------|-------------|-------------------|
+| 代表类型 | `RmFileHdr`, `RmPageHdr`, `IxFileHdr`, `IxPageHdr` | `DbMeta`, `TabMeta`, `ColMeta`, `IndexMeta` |
+| 描述对象 | 物理存储结构——页、文件、B+ 树节点 | 逻辑模式——数据库、表、字段、索引定义 |
+| 数据类型 | `int`, `page_id_t`, `bool` 等原始类型 | `std::string`, `std::vector`, `std::unordered_map` 等容器 |
+| 序列化方式 | `reinterpret_cast` 直接映射二进制，或 `serialize()` 逐字段写入 | `operator<<` / `>>` 文本流，一行一个字段 |
+| 存在位置 | 数据文件 / 索引文件的第 0 页内，或页面固定偏移处 | 独立的 `db.meta` 文本文件中 |
+| 访问频率 | 每次 CRUD 操作都要读页头；文件头在打开/关闭时读写 | DDL 时写出，查询时只在 Analyze 阶段读取 schema |
+| 由谁管理 | `RmFileHandle` / `IxIndexHandle` 持有并维护 | `SmManager::db_` 持有，`flush_meta()` 持久化 |
+| 是否走缓冲池 | 文件头不走（直接调用 `DiskManager`），页头走 | 不走缓冲池，直接文件流读写 |
+
+### 为什么是两套
+
+**Hdr 追求紧凑高效。**
+
+Hdr 放在数据文件和索引文件内部，每次 CRUD 都要访问，必须快。
+
+用原始类型 + 固定布局 + `reinterpret_cast`，读写就是一次内存拷贝，零开销。
+
+文件头独占第 0 页，页头嵌入每个页面的固定偏移，位置确定，访问简单。
+
+**Meta 追求灵活可读。**
+
+数据库 schema 变化不频繁——建表时写一次，之后就是只读。
+
+用 C++ 标准容器表达嵌套关系更自然：一个数据库下有多个表，一个表下有多个字段和索引。
+
+文本序列化到 `db.meta`，可以手动打开查看和修复，调试友好。
+
+**核心分界线**：Hdr 描述"怎么存"（物理布局），Meta 描述"存了什么"（逻辑内容）。
+
+### 从名称一眼识别
+
+- 见到 `XxxHdr` → 物理头，操作的是原始字节，在磁盘页面里
+- 见到 `XxxMeta` → 逻辑元数据，操作的是 C++ 对象，在 `db.meta` 文件里
+
+一个例外：`IxFileHdr` 里有 `std::vector`（字段类型列表），但它整体仍然用 `serialize()` 二进制序列化到第 0 页，不走文本流。
+
 ## 元数据层次回顾
 
 ```mermaid

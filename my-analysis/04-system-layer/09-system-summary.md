@@ -57,6 +57,7 @@ SM 调用 IX 创建/删除索引文件
 | 存储层 | SM 通过 `disk_manager_` 创建日志文件，通过 `buffer_pool_manager_` 获取缓冲池 |
 | 记录层 | SM 通过 `rm_manager_` 创建/打开/关闭表文件，通过 `RmScan` 全表扫描 |
 | 索引层 | SM 通过 `ix_manager_` 创建/打开/关闭索引文件，通过 `IxIndexHandle::insert_entry` 构建索引 |
+| 命名模式 | 前 3 章的 `XxxHdr`（物理头）与本章的 `XxxMeta`（逻辑元数据）构成一对命名规范：Hdr 描述"怎么存"，Meta 描述"存了什么"。详见 [02 节 Hdr vs Meta 对比](./02-system-data-structures.md#hdr-vs-meta) |
 
 SM 是最接近用户的存储相关模块——它直接处理 `CREATE TABLE`、`CREATE INDEX` 这类 SQL 命令。
 

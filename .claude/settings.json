@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "f=/home/dorian/repo/RMDB-2024-Analyze/.claude/.dirty; if [ -f \"$f\" ]; then rm \"$f\"; echo '{\"hookSpecificOutput\":{\"hookEventName\":\"Stop\",\"additionalContext\":\"本轮有文件修改。请调用 commit skill 提交修改。\"}}'; fi",
+            "command": "rm -f /home/dorian/repo/RMDB-2024-Analyze/.claude/.dirty",
             "timeout": 5
           }
         ]

@@ -113,7 +113,13 @@ Condition
 └── sub_query: shared_ptr<Query>  -- 子查询（如果右侧是子查询）
 ```
 
-**含义**：右侧有四种可能的类型——值（`is_rhs_val = true`）、列（`is_rhs_val = false`，通过 `rhs_col` 引用）、子查询（`is_sub_query = true`，通过 `sub_query` 引用）、值列表（`is_sub_query = true`，通过 `rhs_value_list` 引用）。
+**lhs/rhs 术语**：`lhs` 是 left-hand side（左侧），`rhs` 是 right-hand side（右侧）。在一条条件 `age > 18` 中，`lhs` 指向列 `age`，`rhs` 指向值 `18`。所有条件中 `lhs` 永远是列引用，`rhs` 根据条件类型可以是值、列、子查询或值列表。
+
+右侧有四种可能的类型:
+- 值（`is_rhs_val = true`）
+- 列（`is_rhs_val = false`，通过 `rhs_col` 引用）
+- 子查询（`is_sub_query = true`，通过 `sub_query` 引用）
+- 值列表（`is_sub_query = true`，通过 `rhs_value_list` 引用）。
 
 **示例**：
 
@@ -217,6 +223,8 @@ for (auto& item : x->select_list) {
 **含义**：遍历 SELECT 列表中的每一项，提取列引用和聚合类型，并为没有别名的聚合函数自动生成别名。
 
 **作用**：`SELECT MAX(score)` 没有写别名，Analyze 自动给它生成别名 `"MAX(score)"`，这样后续输出结果时就有了列标题。
+
+RMDB 中的 `alias` 专指**列别名**（通过 `SELECT col AS alias` 指定）。RMDB 不支持表别名（如 `FROM student AS s`），所以不存在区分问题——看到 `alias` 就是列别名。
 
 **示例**：
 

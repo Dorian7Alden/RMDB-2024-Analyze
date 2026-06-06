@@ -21,8 +21,8 @@ flowchart TD
 
     subgraph sm["SM 系统管理 本章"]
         style sm fill:#fef3c7,stroke:#f59e0b,color:#92400e
-        SMANAGER["SmManager<br/>元数据管理 / DDL 执行"]
-        META["DbMeta / TabMeta / ColMeta / IndexMeta<br/>元数据结构"]
+        SMANAGER["SmManager<br/>元数据管理和 DDL 执行"]
+        META["DbMeta TabMeta ColMeta IndexMeta<br/>元数据结构"]
     end
 
     subgraph lower["下层"]
@@ -34,7 +34,7 @@ flowchart TD
 
     subgraph exec["执行层"]
         style exec fill:#f3f4f6,stroke:#6b7280,color:#374151
-        EXEC["各类 Executor<br/>通过 SM 获取表/索引句柄"]
+        EXEC["各类 Executor<br/>通过 SM 获取表和索引句柄"]
     end
 
     P --> A
@@ -99,9 +99,8 @@ std::unordered_map<std::string, std::unique_ptr<IxIndexHandle>> ihs_;
 
 你可能注意到 SM 的很多方法都有一个 `Context* context` 参数。`Context` 是一个**贯穿 SQL 执行全流程的环境对象**，它随身携带了当前操作所需的 "运行时信息"。
 
-`src/common/context.h:22-41`
-
 ```cpp
+// src/common/context.h:22-41
 class Context {
  public:
   Context(LockManager* lock_mgr, LogManager* log_mgr, Transaction* txn)
@@ -121,7 +120,7 @@ class Context {
 **在 SM 层的使用**：
 
 - `context->txn_` 传给 `insert_entry(key, rid, context->txn_)`——告诉 B+ 树当前是哪个事务在做插入，事务层用它做并发控制
-- `context->lock_mgr_` 用于加表级锁（在 SM 层大部分被注释掉了，锁的讨论留给事务层章节）
+- `context->lock_mgr_` 在注释代码中用于表级锁：级别是事务锁管理器的表级锁，范围是整张表文件，类型可能是共享锁或排他锁，生命周期随事务释放；SM 层参考实现多数锁调用被注释，细节留到事务层章节
 - `context->data_send_` 用于 `show_tables` / `desc_table` 等查询操作，把结果格式化输出到客户端缓冲区
 
 **为什么 SM 层不直接用，还要往下传**：SM 自己不操作数据，但它调用的 RM 和 IX 层需要——`RmFileHandle::get_record(rid, context)` 需要 `context->txn_` 来判断并发冲突，`get_record` 拿到的数据要通过 `context->data_send_` 返回给客户端。

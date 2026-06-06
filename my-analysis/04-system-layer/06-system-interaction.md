@@ -36,17 +36,18 @@ flowchart LR
 SQL 文本 → Parser → AST → Analyze → 逻辑计划 → QlManager → SmManager → RM/IX
 ```
 
-**源码对应**：`src/execution/execution_manager.cpp:96-138`
+**位置**：`src/execution/execution_manager.cpp:96-138`
 
 ```cpp
+// src/execution/execution_manager.cpp:94-110
 // QlManager 根据 DDL 类型分发到 SmManager 的不同方法
-case SM_CREATE_TABLE:
+case T_CreateTable:
   sm_manager_->create_table(x->tab_name_, x->cols_, context);
-case SM_DROP_TABLE:
+case T_DropTable:
   sm_manager_->drop_table(x->tab_name_, context);
-case SM_CREATE_INDEX:
+case T_CreateIndex:
   sm_manager_->create_index(x->tab_name_, x->tab_col_names_, context);
-case SM_DROP_INDEX:
+case T_DropIndex:
   sm_manager_->drop_index(x->tab_name_, x->tab_col_names_, context);
 ```
 
@@ -65,12 +66,11 @@ IxManager* ix_manager_;
 SM 持有四个下层管理器的指针，通过 getter 方法暴露给执行层：
 
 ```cpp
+// src/system/sm_manager.h:51-57
 BufferPoolManager* get_bpm() { return buffer_pool_manager_; }
 RmManager* get_rm_manager() { return rm_manager_; }
 IxManager* get_ix_manager() { return ix_manager_; }
 DiskManager* get_disk_manager() { return disk_manager_; }
-
-// 吐槽：为什么变量名格式不统一!!!
 ```
 
 **含义**：SM 是 RMDB 中**唯一持有所有管理器指针的类**。任何需要访问 RM、IX、Buffer Pool 的组件，都可以通过 `sm_manager_` 拿到对应的管理器。
@@ -82,6 +82,7 @@ SM 通过 `fhs_` 和 `ihs_` 两个 map 缓存所有打开的文件句柄。
 ### fhs_：表文件句柄缓存
 
 ```cpp
+// src/system/sm_manager.h:31
 std::unordered_map<std::string, std::unique_ptr<RmFileHandle>> fhs_;
 ```
 
@@ -90,6 +91,7 @@ std::unordered_map<std::string, std::unique_ptr<RmFileHandle>> fhs_;
 ### ihs_：索引文件句柄缓存
 
 ```cpp
+// src/system/sm_manager.h:33
 std::unordered_map<std::string, std::unique_ptr<IxIndexHandle>> ihs_;
 ```
 
@@ -127,7 +129,7 @@ Analyze 阶段需要验证：
 
 这些查询都通过 `db_` 的元数据完成。
 
-**源码**：`DbMeta` 在 `sm_meta.h` 中声明了 `friend class Analyze`，允许 Analyze 直接访问 `tabs_` 成员。
+**位置**：`DbMeta` 在 `src/system/sm_meta.h` 中声明了 `friend class Analyze`，允许 Analyze 直接访问 `tabs_` 成员。
 
 ### Planner 计划生成
 
@@ -140,9 +142,8 @@ Planner 在生成执行计划时需要：
 
 ## 全局落盘：flush_all
 
-`src/execution/execution_manager.cpp:202-210`
-
 ```cpp
+// src/execution/execution_manager.cpp:202-210
 // QlManager 层有一个全局 flush 操作
 sm_manager_->flush_meta();
 for (auto& [_, fh] : sm_manager_->fhs_) {

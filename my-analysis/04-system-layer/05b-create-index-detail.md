@@ -91,6 +91,7 @@ for (auto& col_name : col_names) {
 > 给 `vector` 尾部加元素有三种写法：
 >
 > ```cpp
+> // 示例：vector 尾部添加元素的三种写法
 > vector<ColMeta> col_metas;
 > ColMeta& col = *table_meta.get_col(col_name);
 >
@@ -209,6 +210,7 @@ for (auto&& scan = std::make_unique<RmScan>(fh.get()); !scan->is_end();
 ### 获取记录
 
 ```cpp
+// src/system/sm_manager.cpp:366
 auto&& record = fh->get_record(rid, context);
 ```
 
@@ -219,6 +221,7 @@ auto&& record = fh->get_record(rid, context);
 ### 构建索引键（memcpy 拼接）
 
 ```cpp
+// src/system/sm_manager.cpp:367-370
 offset = 0;
 for (auto& col_meta : col_metas) {
   memcpy(key + offset, record->data + col_meta.offset, col_meta.len);
@@ -254,6 +257,7 @@ memcpy(key + 4, record->data + 4, 32);    // 再拷 name
 ### B+ 树插入
 
 ```cpp
+// src/system/sm_manager.cpp:373
 ih->insert_entry(key, rid, context->txn_)
 ```
 
@@ -287,7 +291,7 @@ if (ih->insert_entry(key, rid, context->txn_) == IX_NO_PAGE) {
 
 然后抛异常告知用户建索引失败。
 
-> **UNIQUE 判断在 B+ 树层**：`IX_NO_PAGE` 的含义在索引层的 `insert_entry` 中定义——它意味着 B+ 树中已经存在相同的键（或键重复且索引是 unique 的），无法为新记录分配页面号。SM 层不需要自己比较键值，直接信任索引层的返回值。
+> **UNIQUE 判断在 B+ 树层**：`IX_NO_PAGE` 的含义在索引层的 `insert_entry` 中定义——它意味着 B+ 树中已经存在相同的键（或键重复且索引是 unique 的），无法为新记录分配页面号。SM 层不需要自己比较键，直接信任索引层的返回值。
 
 ## 阶段 7：持久化和缓存
 

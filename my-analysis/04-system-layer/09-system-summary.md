@@ -61,6 +61,4 @@ SM 调用 IX 创建/删除索引文件
 
 SM 是最接近用户的存储相关模块——它直接处理 `CREATE TABLE`、`CREATE INDEX` 这类 SQL 命令。
 
-上一节：[08-system-api-reference.md](./08-system-api-reference.md)
-
-下一章：第 5 章：查询处理（待编写）
+上一节：[08-system-api-reference.md](./08-system-api-reference.md) | 下一章：[01-query-processing-overview.md](../05-query-processing/01-query-processing-overview.md)

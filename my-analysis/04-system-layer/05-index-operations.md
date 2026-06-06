@@ -57,9 +57,10 @@ CREATE INDEX ON student(age, name) → student_age_name.idx
 
 ### 为什么 UNIQUE 违反要回滚整个索引
 
-如果索引定义为 UNIQUE，而表中已有重复键值，建索引过程中发现重复时，已经插入的 B+ 树条目必须全部清理：
+如果索引定义为 UNIQUE，而表中已有重复键，建索引过程中发现重复时，已经插入的 B+ 树条目必须全部清理：
 
 ```cpp
+// src/system/sm_manager.cpp:377-380
 ix_manager_->close_index(ih.get());    // 关闭句柄
 ix_manager_->destroy_index(ix_name);    // 删除索引文件
 throw NonUniqueIndexError(tab_name, col_names);
@@ -68,8 +69,6 @@ throw NonUniqueIndexError(tab_name, col_names);
 关闭句柄 + 删除文件 = "回滚"。`.idx` 文件被删除，B+ 树的所有节点随文件一起消失，不留下任何垃圾数据。
 
 ## drop_index：删除索引
-
-`src/system/sm_manager.cpp:403-459`
 
 有两个重载，分别接受 `vector<string>`（字段名）和 `vector<ColMeta>`（字段元数据）：
 
@@ -103,8 +102,6 @@ flush_meta();
 **框架对比**：框架的两个 `drop_index` 重载都是空的。参赛者需要实现上面的完整清理流程。
 
 ## redo_index：重建索引
-
-`src/system/sm_manager.cpp:467-513`
 
 **场景**：`redo_index` 仅在**恢复（Recovery）流程**中使用。当系统崩溃后重放日志时，可能发现某个索引文件损坏或不完整，此时需要重建索引。
 

@@ -29,6 +29,7 @@
 **框架**（`db2026-x/src/system/sm_manager.cpp:87-89`）：
 
 ```cpp
+// db2026-x/src/system/sm_manager.cpp:87-89
 void SmManager::open_db(const std::string& db_name) {
     // 空
 }
@@ -37,6 +38,7 @@ void SmManager::open_db(const std::string& db_name) {
 **参考实现**（`src/system/sm_manager.cpp:90-120`）：
 
 ```cpp
+// src/system/sm_manager.cpp:90-120
 void SmManager::open_db(const std::string& db_name) {
   if (!is_dir(db_name)) throw DatabaseNotFoundError(db_name);
   if (!db_.name_.empty()) throw DatabaseExistsError(db_name);
@@ -67,6 +69,7 @@ void SmManager::open_db(const std::string& db_name) {
 **框架**（`db2026-x/src/system/sm_manager.cpp:94-98`）：
 
 ```cpp
+// db2026-x/src/system/sm_manager.cpp:94-98
 void SmManager::flush_meta() {
     std::ofstream ofs(DB_META_NAME);  // 没有 std::ios::trunc
     ofs << db_;
@@ -76,6 +79,7 @@ void SmManager::flush_meta() {
 **参考实现**（`src/system/sm_manager.cpp:125-129`）：
 
 ```cpp
+// src/system/sm_manager.cpp:125-129
 void SmManager::flush_meta() {
   std::ofstream ofs(DB_META_NAME, std::ios::trunc);
   ofs << db_;
@@ -106,6 +110,7 @@ void SmManager::flush_meta() {
 **参考实现**：在字段列表构建完成后，添加了：
 
 ```cpp
+// src/system/sm_manager.cpp:267-269
 for (size_t i = 0; i < tab.cols.size(); ++i) {
   tab.cols_map.emplace(tab.cols[i].name, i);
 }

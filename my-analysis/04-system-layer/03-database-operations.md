@@ -49,9 +49,8 @@ chdir("..");               // 关闭时返回上级目录
 
 ## create_db：创建数据库
 
-`src/system/sm_manager.cpp:36-69`
-
 ```cpp
+// src/system/sm_manager.cpp:36-69
 void SmManager::create_db(const std::string& db_name) {
   if (is_dir(db_name)) {
     throw DatabaseExistsError(db_name);
@@ -98,9 +97,8 @@ student_db
 
 ## open_db：打开数据库
 
-`src/system/sm_manager.cpp:90-120`
-
 ```cpp
+// src/system/sm_manager.cpp:90-120
 void SmManager::open_db(const std::string& db_name) {
   // 数据库不存在
   if (!is_dir(db_name)) {
@@ -141,9 +139,8 @@ void SmManager::open_db(const std::string& db_name) {
 
 ## close_db：关闭数据库
 
-`src/system/sm_manager.cpp:134-163`
-
 ```cpp
+// src/system/sm_manager.cpp:134-163
 void SmManager::close_db() {
   if (db_.name_.empty()) {
     throw DatabaseNotOpenError(db_.name_);
@@ -182,9 +179,8 @@ void SmManager::close_db() {
 
 ## flush_meta：持久化元数据
 
-`src/system/sm_manager.cpp:125-129`
-
 ```cpp
+// src/system/sm_manager.cpp:125-129
 void SmManager::flush_meta() {
   std::ofstream ofs(DB_META_NAME, std::ios::trunc);
   ofs << db_;
@@ -215,9 +211,8 @@ std::ofstream ofs(DB_META_NAME, std::ios::trunc);
 
 ## drop_db：删除数据库
 
-`src/system/sm_manager.cpp:75-83`
-
 ```cpp
+// src/system/sm_manager.cpp:75-83
 void SmManager::drop_db(const std::string& db_name) {
   if (!is_dir(db_name)) {
     throw DatabaseNotFoundError(db_name);

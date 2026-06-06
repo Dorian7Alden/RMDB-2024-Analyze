@@ -55,9 +55,8 @@ flowchart LR
 
 描述表中一个字段（列）的基本信息。
 
-`src/system/sm_meta.h:21-42`
-
 ```cpp
+// src/system/sm_meta.h:21-42
 struct ColMeta {
   std::string tab_name;  // 字段所属表名称
   std::string name;      // 字段名称
@@ -79,15 +78,14 @@ struct ColMeta {
 
 `offset` 是建表时计算出来的：每条记录的总大小 = 最后一个字段的 offset + 它的 len = 36 + 4 = 40 字节。
 
-**源码**：offset 的计算逻辑在 `SmManager::create_table` 中，`curr_offset` 逐字段累加。
+**位置**：offset 的计算逻辑在 `SmManager::create_table` 中，`curr_offset` 逐字段累加。
 
 ## IndexMeta：索引元数据
 
 描述一个索引的定义信息。
 
-`src/system/sm_meta.h:44-101`
-
 ```cpp
+// src/system/sm_meta.h:44-101
 struct IndexMeta {
   std::string tab_name;                              // 索引所属表名称
   int col_tot_len = 0;                               // 索引字段长度总和
@@ -124,9 +122,15 @@ cols[1] = (4,  {tab_name="student", name="name", len=32, offset=4})
 col_tot_len = 4 + 32 = 36   ← 键的总长度
 ```
 
-> 这里应该有两个 offset ：
-> - 第一个是存储时，key 键的偏移量，跟真实的索引存储相关，这里先建的是 age 的索引，所以为 0 ，然后创建的是 name ，由于 age 的 len 为 4 ，所以 name 的 offset 为 4
-> - 还有第二个 offset ，是存储在表结构中的 offset ，在表结构中， name 在 age 前面，并且由于还有一个 id 字段，所以 name 的 offset 为 4 ， age 的 offset 为 4+32=36
+> **注意**：这里有两个 offset。
+>
+> 第一个是索引键内偏移量，和真实的索引键布局相关。
+>
+> 这里先放 age，所以 age 的键偏移量是 0；再放 name，因为 age 的长度是 4，所以 name 的键偏移量是 4。
+>
+> 第二个是记录内偏移量，和表记录布局相关。
+>
+> 在 student 表记录中，name 在 age 前面，并且前面还有 id 字段，所以 name 的记录内偏移量是 4，age 的记录内偏移量是 4 + 32 = 36。
 
 构建键的代码就靠这两个偏移量：
 
@@ -159,9 +163,8 @@ key（36 字节）
 
 ## TabMeta：表元数据
 
-`src/system/sm_meta.h:133-229`
-
 ```cpp
+// src/system/sm_meta.h:133-229
 struct TabMeta {
   std::string name;                                    // 表名称
   std::vector<ColMeta> cols;                           // 表包含的字段
@@ -206,9 +209,8 @@ std::string get_index_name(const std::vector<std::string>& index_cols) {
 
 ## DbMeta：数据库元数据
 
-`src/system/sm_meta.h:233-283`
-
 ```cpp
+// src/system/sm_meta.h:233-283
 class DbMeta {
  private:
   std::string name_;                               // 数据库名称
@@ -235,9 +237,8 @@ class DbMeta {
 
 **实现**：每个结构都重载了 `operator<<`（写出）和 `operator>>`（读入），以文本格式一行一行写入/读出。
 
-`src/system/sm_meta.h:192-228` — TabMeta 的序列化：
-
 ```cpp
+// src/system/sm_meta.h:192-203
 // 写出格式：
 friend std::ostream& operator<<(std::ostream& os, const TabMeta& tab) {
   os << tab.name << '\n' << tab.cols.size() << '\n';    // 表名 + 字段个数
@@ -256,6 +257,7 @@ friend std::ostream& operator<<(std::ostream& os, const TabMeta& tab) {
 读入时必须严格按**相同顺序**：
 
 ```cpp
+// src/system/sm_meta.h:205-228
 friend std::istream& operator>>(std::istream& is, TabMeta& tab) {
   size_t n;
   is >> tab.name >> n;            // 读表名 + 字段个数
@@ -448,4 +450,4 @@ flowchart TD
 | `ColDef` | `src/system/sm_manager.h` | 21-25 |
 | `SmManager` 成员 | `src/system/sm_manager.h` | 28-39 |
 
-上一节：[01-system-layer-overview.md](./01-system-layer-overview.md)（待编写） | 下一节：[03-database-operations.md](./03-database-operations.md)
+上一节：[01-system-layer-overview.md](./01-system-layer-overview.md) | 下一节：[03-database-operations.md](./03-database-operations.md)

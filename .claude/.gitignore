@@ -2,3 +2,5 @@
 scheduled_tasks.lock
 settings.local.json
 .write-counter
+.conv-counter
+.dirty

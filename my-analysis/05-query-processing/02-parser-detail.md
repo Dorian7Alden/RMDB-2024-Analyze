@@ -156,7 +156,7 @@ SHOW, TABLES, HELP, EXIT, LOAD, ON, OFF ...
 
 **含义**：bison 是一个语法分析器生成器——你写 BNF 语法规则，它生成 C 代码。
 
-**作用**：bison 使用 LALR(1) 算法，把语法规则编译成移进-归约分析器，输出一个 `yyparse()` 函数。
+**作用**：bison 使用 LALR(1)（Look-Ahead LR，向前看一个符号的 LR 分析）算法，把语法规则编译成移进-归约分析器，输出一个 `yyparse()` 函数。
 
 **场景**：`yyparse()` 不断调用 `yylex()` 获取 token，按照语法规则逐步归约，最终规约到起始规则时得到完整的 AST。
 

@@ -403,4 +403,4 @@ Optimizer 是查询计划的大脑，负责决策"怎么执行"。
 - 决定多表连接顺序和连接算法
 - 处理排序、聚合、投影
 
-上一节：[03-analyze-detail.md](./03-analyze-detail.md) | 下一节：[05-execution-detail.md](./05-execution-detail.md)
+上一节：[03b-analyze-processing-flow.md](./03b-analyze-processing-flow.md) | 下一节：[05-execution-detail.md](./05-execution-detail.md)

@@ -520,4 +520,4 @@ Parser 是 SQL 查询处理的入口。
 
 **核心职责**：将人类可读的 SQL 文本翻译为结构化的树形数据，供后续的语义分析使用。
 
-下一节：[03-analyze-detail.md](./03-analyze-detail.md)
+下一节：[03a-analyze-data-structures.md](./03a-analyze-data-structures.md)

@@ -132,83 +132,181 @@ Condition
 
 ### Value
 
-**含义**：`Value`（`src/common/common.h:45-164`）是运行时的值表示——把 SQL 中的字面量（`18`、`3.14`、`'Tom'`）包装成程序可以直接使用和比较的对象。
+**含义**：`Value`（`src/common/common.h:45-164`）是 SQL 字面量在运行时的表示——把 `18`、`3.14`、`'Tom'` 这类字面量包装成程序可以直接使用的对象。
 
-**为什么需要两层表示**：数据库里所有数据最终都以原始字节形式存储在磁盘上。执行层的算子在做比较时（如 `WHERE age > 18`），拿到的也是原始字节。所以 Value 既要保留 C++ 层面的类型化值（方便在 Analyze 阶段做类型检查），又要把它转成和磁盘格式一致的字节数组（方便执行层直接做字节级比较）。
+#### 数据结构
 
-```
-以 WHERE age > 18 为例，值 18 在系统中的形态：
+先看 `Value` 的 C++ 定义：
 
-Parser阶段:
-  IntLit(val=18)                         ← AST 节点，只是"语法上知道这是整数"
-
-Analyze阶段 (Value):
-  ┌─────────────────────────────────────┐
-  │ type = TYPE_INT                     │  ← 类型标记
-  │ int_val = 18                        │  ← C++ 层面的值，用于类型检查
-  │ raw ──→ RmRecord                    │  ← 序列化后的字节，供执行层使用
-  │           ├── data: [12 00 00 00]   │  ← 4 字节，18 的二进制表示
-  │           └── size: 4               │  ← 占用 4 字节
-  └─────────────────────────────────────┘
-
-执行层:
-  从记录中读 age 列的 4 个字节 → 和 raw.data 的 4 个字节逐字节比较
+```cpp
+// src/common/common.h:45-54
+struct Value {
+    ColType type;          // 值的类型：TYPE_INT / TYPE_FLOAT / TYPE_STRING
+    union {
+        int int_val;       // INT 类型的值
+        float float_val;   // FLOAT 类型的值
+    };
+    std::string str_val;   // STRING 类型的值
+    std::shared_ptr<RmRecord> raw;  // 序列化后的原始字节
+};
 ```
 
-**作用**：Analyze 阶段用 `int_val` / `float_val` / `str_val` 做类型检查和兼容性判断（比如 INT 是否能赋给 FLOAT 列）。然后调用 `init_raw()` 把值序列化，执行层直接用 `raw` 的字节数组和记录中的字段数据做 `memcmp` 式比较。
-
-**三种类型的 Value 示例**：
-
-**INT 类型**——`WHERE age > 18` 中的 `18`：
+`type` 字段取值（`src/defs.h:44`）：
 
 ```
-Value
-├── type: TYPE_INT
-├── int_val: 18                          ← C++ 层面的值
-└── raw
-    ├── data: [12, 00, 00, 00]           ← 4 字节，18 的小端序二进制
-    └── size: 4
+ColType: TYPE_INT    → 整数
+         TYPE_FLOAT  → 浮点数
+         TYPE_STRING → 字符串
 ```
 
-**FLOAT 类型**——`WHERE score > 85.5` 中的 `85.5`：
+`union` 是什么：
 
-```
-Value
-├── type: TYPE_FLOAT
-├── float_val: 85.5f                     ← C++ 层面的值
-└── raw
-    ├── data: [00, 00, AB, 42]           ← 4 字节，85.5 的 IEEE 754 表示
-    └── size: 4
-```
+`int_val` 和 `float_val` 被一个 `union` 包在一起。union 的意思是**这两个字段共享同一块内存**——同一时刻只能存其中一个。因为一个 Value 要么是 INT 要么是 FLOAT，不可能同时是两样，用 union 可以省内存。
 
-**STRING 类型**——`WHERE name = 'Tom'` 中的 `'Tom'`：
+`str_val` 为什么不在 union 里：
 
-```
-Value
-├── type: TYPE_STRING
-├── str_val: "Tom"                       ← C++ 层面的值
-└── raw
-    ├── data: [T, o, m, 0, 0, ...]       ← 补齐到列定义的长度（如 CHAR(10) 则为 10 字节）
-    └── size: 10                         ← 长度由列元数据决定
+C++ 中 `std::string` 有构造函数和析构函数，不能和 `int`/`float` 这种基础类型放在同一个 union 里。所以 `str_val` 单独放在外面。
+
+`raw` 的类型 `RmRecord`（`src/record/rm_defs.h:40-43`）：
+
+```cpp
+// src/record/rm_defs.h:40-43
+struct RmRecord {
+    char* data;              // 指向字节数组的指针
+    int size;                // 字节数组的长度
+    bool allocated_ = false; // 是否已分配内存
+};
 ```
 
-`init_raw()` 的作用就是做这个转换（`src/common/common.h:133-148`）：
+**含义**：`RmRecord` 就是一块连续内存——`data` 指针指向 `size` 个字节。它不关心这些字节代表什么，只是把数据原样存着。
+
+**作用**：表中的每行记录在磁盘上就是以 `RmRecord` 的格式存储的。Value 里面的 `raw` 也指向一个 `RmRecord`，这样执行层在做 `WHERE age > 18` 时，拿记录的 age 字段的字节和 `raw.data` 的字节直接比较就可以了。
+
+#### 两层表示
+
+Value 用两套字段表示同一个值：
+
+| 层面 | 用的字段 | 用途 | 谁用 |
+|------|---------|------|------|
+| C++ 类型层 | `int_val` / `float_val` / `str_val` | 类型检查、类型转换判断 | Analyze 阶段 |
+| 原始字节层 | `raw` → `RmRecord` | 和执行层记录的字节做逐字节比较 | Execution 阶段 |
+
+**为什么需要两层**：Analyze 阶段需要知道"这个值是 INT 还是 FLOAT"才能做类型兼容性检查（比如 INT 可以赋给 FLOAT 列）。执行层不关心类型——每条记录读到内存里就是一堆字节，条件比较时直接逐字节 `memcmp`。
+
+#### 序列化：init_raw
+
+**含义**：Analyze 阶段在完成类型检查后，调用 `init_raw()` 把 C++ 类型的值"拍扁"成字节数组，存到 `raw` 里。
 
 ```cpp
 // src/common/common.h:133-148
 void init_raw(int len) {
-    raw = std::make_shared<RmRecord>(len);   // 分配 len 字节的空间
+    raw = std::make_shared<RmRecord>(len);  // 分配 len 个字节
     if (type == TYPE_INT) {
-        *(int*)(raw->data) = int_val;        // 把 int_val 的 4 字节拷贝进去
+        *(int*)(raw->data) = int_val;       // int → 4 字节
     } else if (type == TYPE_FLOAT) {
-        *(float*)(raw->data) = float_val;    // 把 float_val 的 4 字节拷贝进去
+        *(float*)(raw->data) = float_val;   // float → 4 字节
     } else if (type == TYPE_STRING) {
-        memset(raw->data, 0, len);           // 先清零
-        memcpy(raw->data, str_val.c_str(),   // 再把字符串内容拷贝进去
+        memset(raw->data, 0, len);          // 先全部清零
+        memcpy(raw->data, str_val.c_str(),  // 把字符串内容拷贝进去
                str_val.size());
     }
 }
 ```
+
+**`len` 参数从哪里来**：对于 WHERE 条件中的值（如 `WHERE age > 18`），`len` 取自 `age` 列的元数据。如果 age 列定义为 `INT`（占 4 字节），那 `18` 也序列化为 4 字节。这样后续比较时两边的字节长度一致。
+
+#### 具体示例
+
+以 `WHERE age > 18` 为例，看值 `18` 在各阶段的形态：
+
+```
+Parser 阶段:
+  AST 节点 IntLit(val=18)
+  → 只知道"语法上这是一个整数"
+
+Analyze 阶段:
+  convert_sv_value() 创建 Value 对象:
+    type = TYPE_INT
+    int_val = 18
+    raw = nullptr                        ← 还没序列化
+
+  check_clause() 验证 age 列是 INT、18 也是 INT → 类型兼容，调用:
+    rhs_val.init_raw(4)                  ← 参数 4 来自 age 列的元数据（INT 占 4 字节）
+
+  init_raw 执行后 raw 指向:
+    RmRecord {
+        data ──→ 内存中连续的 4 个字节
+        size = 4
+    }
+```
+
+`raw.data` 指向的 4 个字节长什么样：
+
+```
+字节地址:  data+0   data+1   data+2   data+3
+           ┌──────┬──────┬──────┬──────┐
+内容(十六进制)│  12  │  00  │  00  │  00  │
+           └──────┴──────┴──────┴──────┘
+含义:       低位              高位
+            ← 小端序存储，即最低有效字节在最前 →
+
+十进制 18 的十六进制是 0x12（即 18 = 1×16 + 2 = 0x12）。
+4 字节小端序：最低字节 0x12 存在最低地址 data+0，高位补零。
+```
+
+> 上面方框里的 `12 00 00 00` 只是为了展示加了空格分隔，**实际内存中没有任何分隔符**——就是紧挨着的 4 个字节，每个字节的值分别是 0x12、0x00、0x00、0x00。
+
+**FLOAT 示例**——`WHERE score > 85.5` 中的 `85.5`：
+
+```
+Value:
+  type = TYPE_FLOAT
+  float_val = 85.5f
+  raw.data ──→ 4 个字节（85.5 的 IEEE 754 单精度浮点表示）
+  raw.size = 4
+
+init_raw(4) 执行: *(float*)(raw.data) = float_val
+即把 float_val 的 4 个字节原样拷贝到 raw.data 指向的内存。
+```
+
+**STRING 示例**——`WHERE name = 'Tom'` 中的 `'Tom'`，假设 name 列定义为 `CHAR(10)`：
+
+```
+Value:
+  type = TYPE_STRING
+  str_val = "Tom"
+  raw.data ──→ 10 个字节
+  raw.size = 10
+
+init_raw(10) 执行:
+  memset(raw.data, 0, 10)   → 10 个字节全部先置 0
+  memcpy(raw.data, "Tom", 3) → 把 'T' 'o' 'm' 三个字符的 ASCII 码写进去
+
+raw.data:
+  字节 0: 'T'(0x54)  字节 3: 0x00      字节 4-9: 0x00 ...
+  字节 1: 'o'(0x6F)  字节 2: 'm'(0x6D)
+```
+
+**含义**：字符串序列化时，先用 `memset` 全部清零，再把实际内容拷贝进去。末尾多余的字节全为 0。这样 `'Tom'` 和 `'Tom\0\0\0\0\0\0\0'` 在字节层面完全一致，`memcmp` 比较不会因为尾部垃圾数据而错误。
+
+#### 完整流程串联
+
+从 SQL 字面量到 Value 再到序列化字节，一条线串起来：
+
+```
+SQL: WHERE age > 18
+
+1. Parser   → IntLit(val=18)                       // AST 节点
+2. Analyze  → Value(type=INT, int_val=18, raw=null) // C++ 对象
+3. Analyze  → check_clause() 验证类型
+4. Analyze  → init_raw(4)                           // 序列化
+5. Analyze  → Value(type=INT, int_val=18,
+                    raw→RmRecord(data=4字节, size=4))
+6. Executor → cmp_conds(record, conds)              // 用 raw.data 逐字节比较
+               memcmp(record中age偏移量处的4字节, raw.data, 4)
+```
+
+**作用**：Analyze 阶段用 `int_val` 做类型检查，执行阶段用 `raw.data` 做字节比较。两层表示各司其职。
 
 **含义**：`init_raw()` 就是把 C++ 类型的值"拍扁"成字节数组——跟记录在磁盘上存储的格式完全一致。
 

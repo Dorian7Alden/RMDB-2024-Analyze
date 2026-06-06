@@ -46,7 +46,7 @@ public:
 | `nextTuple()` | 向下一条记录移动 |
 | `is_end()` | 返回 `true` 表示已无更多记录 |
 | `Next()` | 返回**当前**记录（由上次 `beginTuple` 或 `nextTuple` 定位） |
-| `rid()` | 返回当前记录的 RID（页号 + 槽号） |
+| `rid()` | 返回当前记录的 RID（Record ID，由页号和槽号组成） |
 
 ### 拉取式流水线
 

@@ -244,9 +244,9 @@ Analyze 阶段:
 
 ```
 字节地址:  data+0   data+1   data+2   data+3
-           ┌──────┬──────┬──────┬──────┐
+            ┌──────┬──────┬──────┬──────┐
 内容(十六进制)│  12  │  00  │  00  │  00  │
-           └──────┴──────┴──────┴──────┘
+            └──────┴──────┴──────┴──────┘
 含义:       低位              高位
             ← 小端序存储，即最低有效字节在最前 →
 
@@ -283,8 +283,8 @@ init_raw(10) 执行:
   memcpy(raw.data, "Tom", 3) → 把 'T' 'o' 'm' 三个字符的 ASCII 码写进去
 
 raw.data:
-  字节 0: 'T'(0x54)  字节 3: 0x00      字节 4-9: 0x00 ...
-  字节 1: 'o'(0x6F)  字节 2: 'm'(0x6D)
+  字节 0: 'T'(0x54)  字节 1: 'o'(0x6F)  字节 2: 'm'(0x6D)
+  字节 3: 0x00       字节 4-9: 0x00 ...
 ```
 
 **含义**：字符串序列化时，先用 `memset` 全部清零，再把实际内容拷贝进去。末尾多余的字节全为 0。这样 `'Tom'` 和 `'Tom\0\0\0\0\0\0\0'` 在字节层面完全一致，`memcmp` 比较不会因为尾部垃圾数据而错误。
@@ -309,6 +309,8 @@ SQL: WHERE age > 18
 **作用**：Analyze 阶段用 `int_val` 做类型检查，执行阶段用 `raw.data` 做字节比较。两层表示各司其职。
 
 **含义**：`init_raw()` 就是把 C++ 类型的值"拍扁"成字节数组——跟记录在磁盘上存储的格式完全一致。
+
+> TODO: 听不懂在说什么！！！什么叫 C++ 类型，不就是 int 跟 float 类型吗？"拍扁" 成字节数组，什么玩意是字节数组？跟记录在磁盘上存储的格式完全一致？磁盘上存储的内容不全是字符吗？磁盘上是怎么存储的？忘都忘了，也不回顾一下！
 
 **场景**：Analyze 的 `check_clause()` 在验证完类型兼容性后，调用 `cond.rhs_val.init_raw(len)` 完成序列化。后续 SeqScanExecutor 扫描每条记录时，直接用 `memcmp` 比较记录中字段的字节和 `raw.data` 中的字节，不需要再知道"这是什么类型"。这样的设计让执行层完全不关心数据类型，只做字节级比较。
 
@@ -695,40 +697,137 @@ else if (auto x = dynamic_pointer_cast<ast::UpdateStmt>(parse)) {
 
 ## 框架 TODO 对比
 
-db2026-x 框架中的 analyze 模块有三个核心 TODO，是学生需要实现的关键功能。
+框架的 analyze 模块有大量待实现的功能，远比三个显式 TODO 标签多。
 
-### TODO 1：表存在性检查
+### Query 类的字段缺失
 
-**位置**：`db2026-x/src/analyze/analyze.cpp:29`，标注 `/** TODO: 检查表是否存在 */`。
+框架的 `Query`（`db2026-x/src/analyze/analyze.h:23-40`）只有 6 个字段：
 
-**现状**：框架从 AST 中提取了表名列表（`query->tables = std::move(x->tabs)`），但没有检查这些表是否真的在数据库中存在。
+```
+框架 Query:
+  parse, conds, cols, tables, set_clauses, values
+```
 
-**需要实现**：遍历 `query->tables`，调用 `sm_manager_->db_.is_table(table)` 验证每个表，不存在则抛出 `TableNotFoundError`。
+参考实现的 `Query`（`src/analyze/analyze.h:23-60`）多了以下字段：
+
+| 缺失字段 | 类型 | 用途 |
+|---------|------|------|
+| `agg_types` | `vector<AggType>` | 每列的聚合类型（AGG_COL / AGG_COUNT / ...） |
+| `alias` | `vector<string>` | 每列的别名 |
+| `group_bys` | `vector<TabCol>` | GROUP BY 列 |
+| `havings` | `vector<Condition>` | HAVING 条件 |
+| `sort_bys` | `TabCol` | ORDER BY 列 |
+| `asc` | `bool` | 排序方向 |
+| `limit` | `int` | LIMIT 值 |
+
+另外还有一个**隐式 TODO**：`analyze.h:26` 标注 `// TODO jointree`，表示 JOIN 的支持尚未考虑。
+
+**需要实现**：在 `Query` 类中补全上述字段，这是支持聚合、分组、排序、别名的前提。
+
+### do_analyze 的处理缺失
+
+框架的 `do_analyze()` 比参考实现简短很多，缺少以下处理：
+
+**SELECT 列表处理不完整**：
+
+框架只把列名存入 `cols`，缺少：
+- 聚合类型的记录（`agg_types` 全未填写）
+- 别名自动生成（`SELECT MAX(score)` 不会有 `"MAX(score)"` 别名）
+- `COUNT(*)` 的特殊处理（`COUNT(*)` 不需要列名）
+
+**缺少 SELECT * 的约束检查**：
+
+框架展开 `SELECT *` 时没有检查是否有 GROUP BY 或 HAVING——参考实现中 `SELECT *` 和聚合/分组不能共存。
+
+**缺少 GROUP BY 和 HAVING 的全部处理**：
+
+框架完全跳过了 GROUP BY 列的验证、HAVING 条件的转换、以及"非聚合列必须在 GROUP BY 中"的约束检查。
+
+**缺少 ORDER BY 验证**：
+
+框架没有处理 `ORDER BY` 子句——不验证排序列是否存在，也不设置 `sort_bys`。
+
+### 缺失的方法
+
+框架中以下方法在参考实现中存在，但框架中完全没有：
+
+| 缺失方法 | 在参考实现中的作用 |
+|---------|------------------|
+| `get_having_clause()` | 将 `HavingExpr` 转换为 `Condition`，验证 HAVING 左侧必须是聚合函数 |
+
+**需要实现**：新增 `get_having_clause()` 方法，处理 HAVING 子句的语义分析。
+
+### 已有方法的功能缺失
+
+**`get_clause()` 缺少子查询和值列表支持**：
+
+框架的 `get_clause()`（`db2026-x/src/analyze/analyze.cpp:101-116`）只处理了右侧是值和右侧是列两种情况。缺少：
+- 右侧是子查询（`score > (SELECT AVG(...))`）——需要递归调用 `do_analyze()`
+- 右侧是值列表（`id IN (1, 2, 3)`）——需要填充 `rhs_value_list`
+
+**`check_clause()` 缺少类型兼容处理**：
+
+框架的 `check_clause()`（`db2026-x/src/analyze/analyze.cpp:118-145`）只做了基本的等号类型匹配。缺少：
+- `COUNT` 聚合的类型处理（COUNT 的结果类型是 INT）
+- INT → FLOAT 隐式转换（`float_col = 1` 应该合法）
+- 子查询的类型检查
+- 值列表中各值的类型一致性检查
+
+**`check_column()` 签名不同**：
+
+框架的 `check_column()` 用的是全部列元数据 `vector<ColMeta>` 做查找（`get_all_cols()` 先查出所有列再传进去）。参考实现直接遍历表名在系统目录中查找，效率更高，且接口不同（参数传引用而非返回值）。
+
+### 三个显式 TODO
+
+框架中有三个明确标注的 `/** TODO: */`：
+
+**TODO 1：表存在性检查**
+
+**位置**：`db2026-x/src/analyze/analyze.cpp:25`。
+
+**现状**：框架提取了表名列表，但没有验证表是否存在。
+
+**需要实现**：遍历 `query->tables`，调用 `sm_manager_->db_.is_table(table)` 验证。
 
 **参考实现**：`src/analyze/analyze.cpp:30-34`。
 
-### TODO 2：UpdateStmt 语义分析
+**TODO 2：UpdateStmt 语义分析**
 
-**位置**：`db2026-x/src/analyze/analyze.cpp:51`，标注 `/** TODO: */`。
+**位置**：`db2026-x/src/analyze/analyze.cpp:51`。
 
-**现状**：整个 `UpdateStmt` 分支的方法体为空。框架跳过了 SET 子句的构造、SET 子句的类型校验和 WHERE 条件的转换。
+**现状**：整个 `UpdateStmt` 分支为空。
 
 **需要实现**：
 - 遍历 `x->set_clauses` 构造 `query->set_clauses`
-- 从系统目录查出列元数据校验 SET 子句的类型兼容性（含 INT→FLOAT 转换）
+- 从系统目录查出列元数据校验类型兼容性（含 INT→FLOAT 转换）
 - 调用 `get_clause()` 和 `check_clause()` 处理 WHERE 条件
 
 **参考实现**：`src/analyze/analyze.cpp:162-195`。
 
-### TODO 3：显式表名的列存在性检查
+**TODO 3：显式表名的列存在性检查**
 
-**位置**：`db2026-x/src/analyze/analyze.cpp:87`，标注 `/** TODO: Make sure target column exists */`。
+**位置**：`db2026-x/src/analyze/analyze.cpp:87`。
 
-**现状**：当用户显式指定了表名（如 `SELECT student.age FROM student`），框架只处理了"推断表名"的分支（`tab_name` 为空时），没有处理"验证列在指定表中存在"的分支（`tab_name` 有值时）。
+**现状**：框架只处理了"推断表名"的分支（`tab_name` 为空），没有处理"验证列在指定表中存在"的分支。
 
-**需要实现**：当 `target.tab_name` 非空时，在 `tables` 列表中找到该表，检查表中是否有该列。
+**需要实现**：当 `target.tab_name` 非空时，在表中查找该列是否存在。
 
 **参考实现**：`src/analyze/analyze.cpp:235-248`。
+
+### 框架 TODO 汇总
+
+| 类别 | 内容 | 复杂度 |
+|------|------|--------|
+| Query 类扩展 | 新增 agg_types、alias、group_bys、havings、sort_bys、asc、limit | 低 |
+| 新增方法 | `get_having_clause()` | 中 |
+| 已有方法增强 | `get_clause()` 补充子查询和值列表 | 中 |
+| 已有方法增强 | `check_clause()` 补充类型转换和 COUNT 处理 | 中 |
+| 已有接口调整 | `check_column()` 改用直接查系统目录 | 低 |
+| do_analyze 补充 | SELECT 列表的聚合类型记录和别名生成 | 中 |
+| do_analyze 补充 | GROUP BY / HAVING / ORDER BY 的完整验证逻辑 | 高 |
+| 显式 TODO | 表存在性检查 | 低 |
+| 显式 TODO | UpdateStmt 语义分析 | 中 |
+| 显式 TODO | 显式表名列存在性检查 | 低 |
 
 ## 小结
 

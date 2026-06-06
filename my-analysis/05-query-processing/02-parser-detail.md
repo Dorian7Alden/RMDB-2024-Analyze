@@ -1,5 +1,11 @@
 # 解析器
 
+> **本节为理解型内容，非学习重点。**
+>
+> Parser（包括 lex.l、yacc.y、ast.h）由赛事举办方直接提供，不属于 DBMS 核心设计范畴。
+> 只需了解 Parser 做什么、AST 长什么样即可，**不需要深入研究词法/语法分析的实现细节**。
+> 后续 Analyze → Optimizer → Execution 才是真正的学习重点。
+
 ## Parser 在流水线中的位置
 
 Parser 是查询处理流水线的第一阶段，负责把 SQL 文本翻译成程序可以操作的数据结构。
@@ -488,22 +494,21 @@ SelectStmt
 
 注意：此时列的表名都是空的——Parser 只负责语法结构，不负责语义解析。列属于哪张表、表是否存在，这些由 Analyze 阶段处理。
 
-## 框架对比
+## 框架说明
 
-db2026-x 框架中的 parser 目录包含以下文件：
+赛事举办方已将 Parser 作为**现成基础设施**提供给参赛者。
 
-| 文件 | 状态 |
+db2026-x 框架中的 parser 目录：
+
+| 文件 | 说明 |
 |------|------|
-| `parser.h` | 已提供 |
-| `parse_node.h` | 已提供（简化版 AST 定义） |
-| `ast_printer.h` | 已提供 |
+| `parser.h` | 已提供，解析入口 |
+| `parse_node.h` | 已提供，AST 节点定义 |
+| `ast_printer.h` | 已提供，AST 打印工具 |
 
-框架中**没有提供** `lex.l`、`yacc.y` 和完整版 `ast.h`——这些需要学生自己编写或从框架的 `parse_node.h` 出发逐步扩展。
+**Parser 不是 DBMS 的设计重点**——词法分析和语法分析是编译原理的经典问题，flex/bison 这类工具已经非常成熟。
 
-这意味着框架中 Parser 的 TODO 包括：
-- 编写 flex 词法规则（`lex.l`），定义各关键字的正则匹配
-- 编写 bison 语法规则（`yacc.y`），覆盖 SELECT/INSERT/UPDATE/DELETE/CREATE TABLE 等核心语句
-- 定义 AST 节点类型（从 `parse_node.h` 扩展），支持表达式、聚合、子查询等
+参赛者直接使用框架提供的 AST 即可，学习重点应该放在后续三个阶段：Analyze（语义分析）、Optimizer（计划生成）、Execution（算子执行）。
 
 ## 小结
 

@@ -21,6 +21,8 @@ flowchart LR
 
 ### 阶段 1：解析器（Parser）
 
+> **Parser 由赛事方提供，非学习重点。** 只需了解输入输出即可，不需要深入研究 flex/bison 实现。
+
 **源码**：`src/parser/`
 
 **输入**：SQL 文本（字符串）。

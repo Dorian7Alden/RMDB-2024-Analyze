@@ -170,6 +170,4 @@ flowchart TD
 | 缓冲池（BufferPool） | RecoveryManager 通过 BufferPoolManager 读写页面进行重做和撤销 |
 | 存储层（Storage） | LogManager 通过 DiskManager 读写日志文件 |
 
-## 下一节
-
-下一节：[02-log-detail.md](./02-log-detail.md)
+上一节：[09-transaction-summary.md](../06-transaction-concurrency/09-transaction-summary.md) | 下一节：[02-recovery-data-structures.md](./02-recovery-data-structures.md)

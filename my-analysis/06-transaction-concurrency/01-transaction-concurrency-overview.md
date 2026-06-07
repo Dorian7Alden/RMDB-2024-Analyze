@@ -169,6 +169,4 @@ sequenceDiagram
 | 记录层（RM） | LockManager 对记录（Rid）加行级锁，WriteRecord 中记录 Rid 和 RmRecord |
 | 存储层（Storage） | 日志持久化最终通过 BufferPoolManager 刷盘 |
 
-## 下一节
-
-下一节：[02-transaction-data-structures.md](./02-transaction-data-structures.md)
+上一节：[09-query-processing-summary.md](../05-query-processing/09-query-processing-summary.md) | 下一节：[02-transaction-data-structures.md](./02-transaction-data-structures.md)

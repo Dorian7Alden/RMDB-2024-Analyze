@@ -25,4 +25,7 @@
 | SQL | Structured Query Language | 结构化查询语言 |
 | DDL | Data Definition Language | 数据定义语言（CREATE/DROP/ALTER） |
 | DML | Data Manipulation Language | 数据操作语言（SELECT/INSERT/UPDATE/DELETE） |
+| ACID | Atomicity, Consistency, Isolation, Durability | 原子性、一致性、隔离性、持久性，事务的四个核心属性 |
 | AST | Abstract Syntax Tree | 抽象语法树 |
+| WAL | Write-Ahead Logging | 预写日志，先写日志再改数据页 |
+| LRU | Least Recently Used | 最近最少使用，一种缓存淘汰算法 |

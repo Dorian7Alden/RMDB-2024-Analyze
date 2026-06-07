@@ -141,7 +141,7 @@ static void run_dml(std::unique_ptr<AbstractExecutor>& exec) {
 
 ## Portal：Plan 树到 Executor 树的转换
 
-**含义**：Portal（`db2026-x/src/portal.h`）是 Plan 和 Executor 之间的桥梁——把 Optimizer 输出的逻辑 Plan 树转换为物理 Executor 树。
+**含义**：Portal（`src/portal.h`）是 Plan 和 Executor 之间的桥梁——把 Optimizer 输出的逻辑 Plan 树转换为物理 Executor 树。
 
 **作用**：Plan 节点只说"这里需要一个索引扫描"，Portal 决定"用 IndexScanExecutor 来实现"。
 

@@ -141,7 +141,7 @@ txn_manager->abort(context->txn_, log_manager.get());
 
 **含义**：事务的每个状态变化都会写日志。
 
-**作用**：它让恢复层可以重放或撤销事务。
+**作用**：它让恢复层可以重放或撤销事务。详细格式和数据结构见第 7 章。
 
 **场景**：begin、commit、abort 以及回滚过程中的每条 INSERT、DELETE、UPDATE 反向操作都会写日志。
 

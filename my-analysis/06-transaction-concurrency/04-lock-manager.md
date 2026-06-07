@@ -253,7 +253,11 @@ bool LockManager::lock_IX_on_table(Transaction* txn, int tab_fd) {
 
 **含义**：RMDB 参考实现使用 wait-die 思路预防死锁。
 
-**作用**：当发生冲突时，老事务可以等待年轻事务，年轻事务遇到老事务则直接中止。
+**背景**：当两个事务互相等待对方持有的锁时，就会形成死锁——双方都无法继续。wait-die 是一种基于事务年龄的死锁预防策略：每个事务有一个唯一的事务编号（由 TransactionManager 的 `next_txn_id_` 递增分配），编号越小的事务越老、优先级越高。
+
+**规则**：老事务遇到冲突时可以等待年轻事务释放锁，年轻事务遇到老事务时只能直接中止（抛出 DEADLOCK_PREVENTION 异常）——因为"老等少"不会形成环，"少等老"则被禁止。
+
+**作用**：通过禁止"年轻事务等待老事务"打破所有可能的环形等待，无需死锁检测就能保证无死锁。
 
 ```cpp
 // src/transaction/concurrency/lock_manager.cpp:819-829

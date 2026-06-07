@@ -92,3 +92,5 @@ Page 用读写锁的原因：一个页面可能被多个执行器同时读取（
 - `std::scoped_lock`：RAII 包装器，自动管理锁的生命周期，防止忘记解锁
 - `std::shared_mutex`：读写锁，允许多读单写，用于 Page 级别的并发控制
 - 子函数不重复加锁，`latch_` 与 `lock` 非固定搭配
+
+上一节：[04c-buffer-pool-page-lifecycle.md](./04c-buffer-pool-page-lifecycle.md) | 下一节：[05a-disk-manager-overview.md](./05a-disk-manager-overview.md)

@@ -250,6 +250,8 @@ void SmManager::desc_table(const std::string& tab_name, Context* context) {
 
 **含义**：列出字段名和类型，类似 MySQL 的 `DESC table_name`。
 
+> **代码观察**：captions 定义了三个列 `{"Field", "Type", "Index"}`，但循环体内 `field_info` 只填了两个值。Index 列头存在但无数据填充——如需显示索引信息应调用 `show_indexs`。
+
 输出示例（student 表）：
 
 ```

@@ -57,7 +57,7 @@ flowchart LR
 > **类比记录层**：`.idx` 和 `.db` 结构完全对称。
 > `.db` = `RmFileHdr`(第0页) + 数据页( RmPageHdr + Bitmap + Slots )
 > `.idx` = `IxFileHdr`(第0页) + 节点页( IxPageHdr + keys + rids )
-> 都是"文件头 + 定长元素的数组"，区别在于 Slots 存记录内容，keys/rids 存键值对。
+> 都是"文件头 + 定长元素的数组"，区别在于 Slots 存记录内容，keys 存键、rids 存值（或孩子页号），两者共同组成键值对。
 
 ## keys 和 rids 分别存什么？
 

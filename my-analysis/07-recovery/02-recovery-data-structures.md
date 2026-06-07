@@ -239,6 +239,8 @@ class UpdateLogRecord : public LogRecord {
 
 **作用**：它合并多次小的日志写入为一次大的磁盘写入，减少磁盘 I/O 次数。
 
+缓冲区大小 `LOG_BUFFER_SIZE = 1024 × PAGE_SIZE / 4 ≈ 1 MB`，由 `src/common/config.h:44` 定义。
+
 ```cpp
 // src/recovery/log_manager.h:419-433
 class LogBuffer {

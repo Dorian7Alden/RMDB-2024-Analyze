@@ -11,7 +11,7 @@
 | 节点内查找（lower_bound） | 空，返回 -1 | 二分查找 |
 | 叶节点查找（leaf_lookup） | 空，返回 false | lower_bound + 比较 |
 | 内部节点查找（internal_lookup） | 空 | upper_bound - 1 |
-| B+ 树遍历（find_leaf_page） | 空，返回 nullptr | 完整实现 + 锁缩放 |
+| B+ 树遍历（find_leaf_page） | 空，返回 nullptr | 完整实现，其中锁缩放由 isSafe 实现 |
 | 节点内插入（insert_pairs） | 空 | memmove + memcpy |
 | 节点内删除（erase_pair） | 空 | memmove 左移 |
 | B+ 树插入（insert_entry） | 空，返回 -1 | find + insert + split |

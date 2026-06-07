@@ -74,4 +74,4 @@ flowchart LR
 
 上一节：[11-record-api-reference.md](./11-record-api-reference.md)
 
-下一章：[第 3 章：索引层](../03-index-layer/README.md)（待编写）
+下一章：[第 3 章：索引层](../03-index-layer/README.md)

@@ -21,11 +21,11 @@
 | **第 0 章** | [整体架构概览](./00-architecture-overview/README.md) | DBMS 是什么、RMDB 分层架构、SQL 执行全流程 |
 | 第 1 章 | [存储层](./01-storage-layer/README.md) | Disk Manager、Page、Buffer Pool、LRU、Page Guard、RWLatch |
 | 第 2 章 | [记录层](./02-record-layer/README.md) | 记录格式、记录增删改查、空闲链表、扫描 |
-| 第 3 章 | [索引层](./03-index-layer/README.md) | B+ 树索引（编写中） |
+| 第 3 章 | [索引层](./03-index-layer/README.md) | B+ 树索引、搜索、插入、删除、扫描 |
 | 第 4 章 | [系统管理](./04-system-layer/README.md) | 元数据管理、DDL 执行、数据库生命周期、建表/建索引 |
 | 第 5 章 | [查询处理](./05-query-processing/README.md) | 解析、分析、优化、执行 |
-| 第 6 章 | [事务与并发](./06-transaction-concurrency/01-transaction-concurrency-overview.md) | （编写中）事务管理、锁管理 |
-| 第 7 章 | [故障恢复](./07-recovery/01-recovery-overview.md) | （编写中）日志、检查点、恢复 |
+| 第 6 章 | [事务与并发](./06-transaction-concurrency/README.md) | 事务管理、两阶段封锁、多粒度锁、间隙锁 |
+| 第 7 章 | [故障恢复](./07-recovery/README.md) | WAL 日志、检查点、崩溃恢复 |
 
 ## 如何使用本教程
 

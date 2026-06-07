@@ -109,7 +109,7 @@ student.db:
 ```
 
 - **对上**：被 `RmFileHandle`（记录层）和 `IxFileHandle`（索引层）持有，在创建表/索引时初始化、运行中修改、关闭时写回
-- **对下**：依赖 `DiskManager::write_page(fd, 0, ...)` 持久化，不经过 Buffer Pool，不走页替换算法
+- **对下**：依赖 `DiskManager::write_page(fd, 0, ...)` 持久化，不经过 Buffer Pool，不走页替换算法（缓冲池在 [04a. 缓冲池概述](./04a-buffer-pool-overview.md) 详细讲解）
 
 之所以绕过缓冲池，是因为文件头只在创建/关闭/检查点三个时机读写，频率极低，没必要占用宝贵的缓冲池 frame。
 

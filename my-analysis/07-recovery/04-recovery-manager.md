@@ -23,6 +23,9 @@ class RecoveryManager {
         transaction_manager_(transaction_manager),
         transaction_(666) {}
 
+  // 666 是一个虚拟事务编号，仅用于恢复期间调用记录层和索引层接口
+  // 恢复时原来的事务对象已销毁，需要用这个占位事务来推动 redo/undo 操作
+
   void analyze();
   void redo();
   void undo();
@@ -88,7 +91,7 @@ void RecoveryManager::analyze() {
 
 **示例**：T5 有两条日志 INSERT lsn=8 和 UPDATE lsn=12。analyze 结束后 `active_txn_[5] = 12`，`lsn_mapping_[8] = 200`，`lsn_mapping_[12] = 360`。
 
-**脏页判断**：如果日志涉及的数据页上记录的 LSN 小于本条日志的 LSN，说明这条日志的操作没有成功落盘到数据页，需要 redo。
+**脏页判断**：如果日志涉及的数据页上记录的 LSN 小于本条日志的 LSN，说明这条日志的操作没有成功落盘到数据页，需要 redo。同一页可能在 `dirty_page_table_` 中出现多次（每条需要重做的日志操作都会记录一个 entry），这不是重复——redo 需要按顺序重放每条操作。
 
 ## 阶段 2：redo
 

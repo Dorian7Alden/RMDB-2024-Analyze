@@ -32,8 +32,10 @@
 - [my-analysis/01-storage-layer/README.md](my-analysis/01-storage-layer/README.md)：存储层（磁盘管理、缓冲池、页面替换策略等）
 - [my-analysis/02-record-layer/README.md](my-analysis/02-record-layer/README.md)：记录层（数据页管理、定长/变长记录 CRUD 等）
 - [my-analysis/03-index-layer/README.md](my-analysis/03-index-layer/README.md)：索引层（B+ 树、节点分裂与合并、范围查询等）
-
-*(其他执行、优化、事务和恢复层持续更新中...)*
+- [my-analysis/04-system-layer/README.md](my-analysis/04-system-layer/README.md)：系统层（数据库与表管理、目录维护等）
+- [my-analysis/05-query-processing/README.md](my-analysis/05-query-processing/README.md)：查询处理层（SQL 解析、查询优化与执行器）
+- [my-analysis/06-transaction-concurrency/README.md](my-analysis/06-transaction-concurrency/README.md)：事务与并发控制层（事务管理、锁机制、隔离级别等）
+- [my-analysis/07-recovery/README.md](my-analysis/07-recovery/README.md)：恢复层（检查点与日志恢复机制机制）
 
 ## 环境与构建参考
 

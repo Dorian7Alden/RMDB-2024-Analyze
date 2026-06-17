@@ -88,6 +88,8 @@ bool LockManager::lock_shared_on_gap(Transaction* txn, IndexMeta& index_meta,
 
 **生命周期**：读取索引范围前申请，事务提交或回滚时统一释放。
 
+**与表锁/记录锁的骨架关系**：gap lock 方法遵循 [04-lock-manager.md](./04-lock-manager.md) 中描述的六步加锁骨架（latch_ → check_lock → 查找队列 → 重复检查 → 兼容性判断 → 授予/等待/中止）。两个间隙锁特有的额外步骤：① 操作的是 `gap_lock_table_`（按 IndexMeta 分组的双层表）而非 `lock_table_`；② 兼容性判断不仅要检查本队列，还要遍历同一索引下所有**相交间隙**的队列（通过 `gap_.isCoincide()` 判断），确保没有其他事务在重合范围上持有冲突锁。
+
 ## lock_exclusive_on_gap
 
 **含义**：在某个索引间隙上申请排他锁。

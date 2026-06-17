@@ -27,7 +27,7 @@
 |----------|--------------|
 | 存储层 | 缓冲池本身有 RLatch/WLatch 的 Page 级锁，事务层的锁保护更细粒度的记录和范围 |
 | 记录层 | 事务的回滚需要反向操作 RmFileHandle 的 insert、delete 和 update |
-| 索引层 | 回滚时需要反向调用 IX 的 delete_entry 和 insert_entry，间隙锁直接绑定索引 |
+| 索引层（IX 模块） | 回滚时需要反向调用索引层的 delete_entry 和 insert_entry，间隙锁直接绑定索引 |
 | 系统层 | TransactionManager 持有 SmManager 指针，通过它获取表元数据和文件句柄 |
 | 查询处理层 | 执行层的每个算子都可能调用 LockManager 加锁，并在修改后追加写集 |
 

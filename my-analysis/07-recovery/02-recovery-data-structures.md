@@ -7,6 +7,7 @@
 ```mermaid
 flowchart TD
     subgraph LOGHEADER["日志头 共 LOG_HEADER_SIZE 字节"]
+        direction TD
         LOGTYPE["log_type_<br/>操作类型"]
         LSN["lsn_<br/>全局递增序号"]
         TOTLEN["log_tot_len_<br/>日志总长度"]

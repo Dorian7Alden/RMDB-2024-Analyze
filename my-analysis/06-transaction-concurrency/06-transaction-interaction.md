@@ -152,4 +152,4 @@ txn_manager->abort(context->txn_, log_manager.get());
 | abort 反向操作 | InsertLogRecord 或 DeleteLogRecord 或 UpdateLogRecord | txn_id、记录内容、Rid、表名 |
 | abort 结束 | AbortLogRecord | txn_id、prev_lsn |
 
-上一节：[05-gap-lock.md](./05-gap-lock.md) | 下一节：[07-transaction-frame-vs-reference.md](./07-transaction-frame-vs-reference.md)
+上一节：[05b-gap-lock-detail.md](./05b-gap-lock-detail.md) | 下一节：[07-transaction-frame-vs-reference.md](./07-transaction-frame-vs-reference.md)

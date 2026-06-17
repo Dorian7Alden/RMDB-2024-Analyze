@@ -177,4 +177,4 @@ std::unordered_map<IndexMeta,
 
 **示例**：student 表上有 `id` 索引和 `age` 索引，插入新记录时可能只在 `age` 索引上加间隙锁，`id` 索引不受影响。
 
-上一节：[04-lock-manager.md](./04-lock-manager.md) | 下一节：[06-transaction-interaction.md](./06-transaction-interaction.md)
+上一节：[04-lock-manager.md](./04-lock-manager.md) | 下一节：[05b-gap-lock-detail.md](./05b-gap-lock-detail.md)

@@ -200,6 +200,26 @@ class WriteRecord {
 
 **示例**：UPDATE 把 age 从 18 改成 19 时，`record_` 保存旧记录，`updated_record_` 保存新记录，`is_set_index_key_` 表示是否改到了索引列。
 
+### is_set_index_key_ 在回滚中的作用
+
+**含义**：`is_set_index_key_` 标记 UPDATE 操作是否修改了索引列的值。
+
+**作用**：回滚时据此决定是否需要维护索引——如果只改了非索引列（如 `UPDATE ... SET name = 'new'`），回滚只需恢复记录数据；如果改了索引列（如 `UPDATE ... SET age = 20`），回滚必须同步删除新索引项、插入旧索引项。
+
+```cpp
+// src/transaction/transaction.cpp 中的回滚逻辑（简化）
+if (wtype == UPDATE_TUPLE) {
+  // 先删除新记录，恢复旧记录
+  fh->update_record(rid, old_record, context);
+  if (is_set_index_key) {
+    // 改到了索引列 → 需要同步回滚索引
+    // 对每个索引：delete_entry(new_key) + insert_entry(old_key)
+  }
+}
+```
+
+**为什么不能盲目重建索引**：如果 UPDATE 没改索引列，回滚时重建索引是浪费——索引项根本没变。`is_set_index_key_` 避免了这种开销。这也是为什么 UpdateExecutor 在 `append_write_record` 前需要判断 `is_set_index_key`——检查新值和旧值在索引列上是否有差异。
+
 ## LockDataId
 
 **含义**：`LockDataId` 是被加锁资源的唯一标识。
@@ -237,6 +257,43 @@ class LockDataId {
 ```
 
 **示例**：表级锁只需要表文件描述符 `fd`，记录级锁需要 `fd + Rid`，间隙锁需要 `fd + IndexMeta + Gap`。
+
+### LockDataId 的 64 位编码
+
+**含义**：`Get()` 方法将 LockDataId 编码为一个 64 位整数。
+
+**作用**：统一的整数表示使得 LockDataId 可以直接作为 `std::unordered_map` 的键（通过 `std::hash<LockDataId>` 调用 `Get()`）。
+
+```cpp
+// src/transaction/txn_defs.h:310-324
+inline int64_t Get() const {
+  if (type_ == LockDataType::TABLE) {
+    return static_cast<int64_t>(fd_);         // 只用 fd_
+  }
+  if (type_ == LockDataType::RECORD) {
+    // 高 1 位 type, 32 位 fd_, 15 位 page_no, 16 位 slot_no
+    return ((static_cast<int64_t>(type_)) << 63) |
+           ((static_cast<int64_t>(fd_)) << 31) |
+           ((static_cast<int64_t>(rid_.page_no)) << 16) | rid_.slot_no;
+  }
+  // GAP: 高 1 位 type, 32 位 fd_, 31 位 gap_hash
+  return ((static_cast<int64_t>(type_)) << 63) |
+         (static_cast<int64_t>(fd_) << 31) |
+         (static_cast<int64_t>(gap_hasher_(gap_)));
+}
+```
+
+**编码布局**：
+
+```
+TABLE:  [ type=0 (63) | fd_ (31..62) | ... (0..30) ]
+RECORD: [ type=1 (63) | fd_ (31..62) | page_no (16..30) | slot_no (0..15) ]
+GAP:    [ type=2 (63) | fd_ (31..62) | gap_hash (0..30) ]
+```
+
+最高位区分锁类型（0=TABLE, 1=RECORD, 2=GAP）。`fd_` 和 `page_no`/`slot_no`/`gap_hash` 压缩进剩余位中。GAP 的哈希通过三层 `std::hash` 特化链（`CondOp` → `pair<CondOp, CondOp>` → `Gap`）逐级组合得到。
+
+**为什么 GAP 用哈希而不是 Gap 本身比较**：`operator==` 中 GAP 的比较也走哈希——`gap_hasher_(gap_) == gap_hasher_(other.gap_)`。这避免了递归比较 `vector<pair<CondOp, CondOp>>`，以哈希碰撞的微小风险换取 O(1) 比较。
 
 **间隙（Gap）是什么**：间隙是索引中**两条已有记录之间的"空档"**。以 B+ 树索引为例，假设 `age` 列上建了索引，当前已有记录的值是 20、30、40：
 

@@ -42,12 +42,14 @@ enum class TransactionState { DEFAULT, GROWING, SHRINKING, COMMITTED, ABORTED };
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DEFAULT : 事务开始
-    DEFAULT --> GROWING : 加锁阶段
-    GROWING --> SHRINKING : 释放锁阶段
-    SHRINKING --> COMMITTED : 提交
-    GROWING --> ABORTED : 回滚
-    SHRINKING --> ABORTED : 回滚
+    [*] --> START: 事务开始
+    START --> GROWING: 加锁阶段
+    GROWING --> SHRINKING: 释放锁阶段
+    SHRINKING --> COMMITTED: 提交
+    GROWING --> ABORTED: 回滚
+    SHRINKING --> ABORTED: 回滚
+    COMMITTED --> [*]
+    ABORTED --> [*]
 ```
 
 **含义**：GROWING 和 SHRINKING 反映了两阶段封锁协议（2PL）的核心约束——事务必须**先全部加锁（GROWING），再全部释放（SHRINKING）**，不允许加锁和释放锁交叉进行。

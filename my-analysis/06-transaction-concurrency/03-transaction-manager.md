@@ -143,6 +143,14 @@ void TransactionManager::abort(Transaction* txn, LogManager* log_manager) {
 
 **示例**：如果事务先 INSERT 后 UPDATE，回滚时必须先撤销 UPDATE，再撤销 INSERT，因为后一步可能依赖前一步产生的数据。
 
+**锁说明**：abort 使用 `std::lock_guard<std::mutex>` 持有 `latch_`，不是事务级锁。
+
+**范围**：保护 `txn_map` 全局事务表和整个回滚过程的原子性，防止其他线程在回滚期间查询或并发操作同一事务。
+
+**类型**：互斥锁，等价于排他保护——同一时刻只有一个线程能执行回滚。
+
+**生命周期**：进入 abort 时通过 `lock_guard` 加锁，函数返回时由 RAII 自动释放。与 `begin` 中立即释放不同，abort 的 `latch_` 需持有到回滚全部完成，因为中途不允许其他线程读取事务的中间回滚状态。
+
 ## 写集回滚规则
 
 **含义**：写集回滚是把已经执行过的物理修改反向执行。

@@ -174,4 +174,6 @@ sequenceDiagram
 | 记录层（RM） | LockManager 对记录（Rid）加行级锁，WriteRecord 中记录 Rid 和 RmRecord |
 | 存储层（Storage） | 日志持久化最终通过 BufferPoolManager 刷盘 |
 
+**另一种并发控制：MVCC（简要了解）**：RMDB 采用 2PL（两阶段封锁）保证可串行化。工业界主流（PostgreSQL、MySQL InnoDB、Oracle）几乎全部采用 MVCC（Multi-Version Concurrency Control，多版本并发控制）。MVCC 的核心思想是写不阻塞读、读不阻塞写——每个事务看到数据库的一个"快照"，修改产生新版本而非覆盖旧版本。MVCC 通常配合快照隔离（Snapshot Isolation）使用，比 Serializable 弱但并发度更高。RMDB 选 2PL 的原因是实现简单：锁的获取/释放逻辑直观，不需要版本链管理和垃圾回收。如果你将来学习 PostgreSQL 内核，会发现它的锁管理器远比 RMDB 复杂——因为它要在 MVCC 快照之上再叠一层锁来处理写写冲突。
+
 上一节：[09-query-processing-summary.md](../05-query-processing/09-query-processing-summary.md) | 下一节：[02-transaction-data-structures.md](./02-transaction-data-structures.md)

@@ -17,4 +17,6 @@ Disk Manager → Page → Buffer Pool → Replacer → Page Guard → RWLatch
 | Page Guard | **需从零实现** | RAII 自动 unpin + 三级锁守卫 |
 | RWLatch | **需从零实现** | shared_mutex 封装，页级读写锁 |
 
+**数据组织模型：行存与列存（简要了解）**：RMDB 采用 NSM（N-ary Storage Model，行存储）——一行数据的所有列连续存放在页面槽位中。行存适合 OLTP 场景（整行读写快），但分析查询（只读几列）会拖入大量无关数据。另一种方式是 DSM（Decomposition Storage Model，列存储）——每列独立存储，聚合和扫描快，适合 OLAP。还有 PAX（Partition Attributes Across）在页面内按列组织，兼顾两者。RMDB 定位为 OLTP 教学系统，行存是自然选择。
+
 下一章：[第 2 章：记录层](../02-record-layer/README.md)

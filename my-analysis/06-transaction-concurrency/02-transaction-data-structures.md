@@ -64,6 +64,8 @@ class Transaction {
     index_deleted_page_set_ = std::make_shared<std::deque<Page*> >();
 ```
 
+**`explicit` 的作用**：阻止编译器用 `txn_id_t` 隐式构造 `Transaction` 对象。比如 `void foo(Transaction t)` 被调用时写 `foo(123)` 不会悄悄编译通过——必须有显式的 `foo(Transaction(123))`。这避免了无意的类型转换，是 C++ 单参数构造函数的惯用安全写法。
+
 **示例**：事务 T1 执行 `UPDATE student SET age = 19 WHERE id = 1` 时，`txn_id_` 标识 T1，`write_set_` 记录旧记录，`lock_set_` 记录 T1 拿到的表锁、行锁或间隙锁。
 
 **输入**：构造函数输入 `txn_id` 和可选的 `isolation_level`。
@@ -82,6 +84,28 @@ enum class TransactionState { DEFAULT, GROWING, SHRINKING, COMMITTED, ABORTED };
 ```
 
 **示例**：T1 第一次申请锁时从 `DEFAULT` 进入 `GROWING`，第一次释放锁时进入 `SHRINKING`，提交后进入 `COMMITTED`。
+
+## 两阶段封锁协议（2PL）
+
+**定义**：两阶段封锁协议（Two-Phase Locking, 2PL）是保证事务调度可串行化的经典并发控制协议。核心规则：**每个事务的加锁和释放锁操作必须分成两个不重叠的阶段**，不允许加锁和释放锁交叉进行。
+
+**两个阶段**：
+
+- **GROWING（增长阶段）**：事务只能申请锁，不能释放任何锁。对应 `TransactionState::GROWING`。
+- **SHRINKING（收缩阶段）**：事务只能释放锁，不能再申请新锁。对应 `TransactionState::SHRINKING`。
+
+**锁点**：GROWING 阶段中最后一把锁申请完毕的时刻称为"锁点"——事务在此刻持有的锁数量达到峰值。
+
+**为什么 2PL 能保证可串行化**：如果两个事务 T1 和 T2 存在冲突操作（比如 T1 写、T2 读同一条记录），冲突操作的先后顺序由锁的获取顺序决定。2PL 保证这个顺序在事务间形成偏序关系，不存在循环依赖，因此并发调度等价于某种串行执行。
+
+**RMDB 中的生命周期**：
+
+1. `DEFAULT → GROWING`：事务首次申请锁，进入增长阶段
+2. `GROWING → SHRINKING`：事务首次释放锁，进入收缩阶段，**此后禁止再申请新锁**
+3. `SHRINKING → COMMITTED`：提交，释放全部剩余锁
+4. `GROWING / SHRINKING → ABORTED`：回滚，释放全部锁
+
+**严格两阶段封锁（Strict 2PL）**：RMDB 实际采用严格 2PL——所有排他锁（X 锁）**一直持有到事务提交或回滚**，不在 SHRINKING 阶段提前释放。好处是避免了**级联回滚**：如果 T1 释放 X 锁后、提交前崩溃，读取过 T1 脏数据的 T2 也必须回滚。严格 2PL 保证只有已提交事务的数据才能被其他事务读到。
 
 ## WriteRecord
 

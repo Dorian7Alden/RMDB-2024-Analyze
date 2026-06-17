@@ -153,4 +153,4 @@ log_manager_->set_persist_lsn(max_lsn);
 
 **含义**：`max_lsn` 是 analyze 阶段找到的最大 LSN，`global_lsn_` 设为 `max_lsn + 1` 保证新日志的 LSN 不会重复。
 
-上一节：[02-recovery-data-structures.md](./02-recovery-data-structures.md) | 下一节：[04-recovery-manager.md](./04-recovery-manager.md)
+上一节：[02-recovery-data-structures.md](./02-recovery-data-structures.md) | 下一节：[03b-aries-principles.md](./03b-aries-principles.md)

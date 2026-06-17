@@ -129,4 +129,6 @@
 
 **总结**：一个 SQL 请求从网络到达 RMDB，经过 Parser（语法）、Analyze（语义）、Optimizer（计划）、Executor（执行），在执行过程中通过 BufferPool（缓存）、Record（记录）、Index（索引）读写页面，通过 LockManager（锁）和 Transaction（事务）保证并发安全，通过 LogManager（日志）保证持久性——这就是一个完整 DBMS 的运转方式。
 
+**延伸了解：标准 ARIES 的高级特性**：RMDB 实现的是简化版 ARIES。完整的 ARIES 还包括模糊检查点（Fuzzy Checkpoint）——检查点时不需要 flush 全部脏页，不阻塞事务，只记录活跃事务表和脏页表即可。以及组提交（Group Commit）——多个事务的日志合并成一次 fsync，大幅提升写事务吞吐量。RMDB 的 1 秒间隔后台刷写线程是组提交的雏形——它天然会把 1 秒内的多条日志合并写入。
+
 上一节：[07-recovery-api-reference.md](./07-recovery-api-reference.md)

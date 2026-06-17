@@ -233,4 +233,4 @@ void RecoveryManager::redo_indexes() {
 
 **场景**：当前实现中 `redo_indexes` 被注释掉了，但在索引层有独立的重建逻辑可供调用。
 
-上一节：[03-log-manager.md](./03-log-manager.md) | 下一节：[05-recovery-interaction.md](./05-recovery-interaction.md)
+上一节：[03b-aries-principles.md](./03b-aries-principles.md) | 下一节：[05-recovery-interaction.md](./05-recovery-interaction.md)

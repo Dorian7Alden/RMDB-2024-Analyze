@@ -23,6 +23,7 @@ class LogManager {
   void flush_log_to_disk();
 
   inline lsn_t get_persist_lsn() const { return persist_lsn_; }
+  inline void set_persist_lsn(lsn_t persist_lsn) { persist_lsn_ = persist_lsn; }
   inline void set_global_lsn(lsn_t global_lsn) {
     global_lsn_.store(global_lsn);
   }

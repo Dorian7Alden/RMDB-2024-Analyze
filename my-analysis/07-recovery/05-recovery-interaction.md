@@ -102,7 +102,7 @@ flowchart LR
     RM -->|"undo 回滚更新"| RMIO
 ```
 
-**示例**：用户执行 `UPDATE student SET age = 20 WHERE id = 1`，日志从构造到写入只需 `add_log_to_buffer` 一次调用；但在崩溃恢复时，这条日志被 analyze 发现、redo 重做、或者因为事务所属事务未提交而被 undo 撤销。
+**示例**：用户执行 `UPDATE student SET age = 20 WHERE id = 1`，日志从构造到写入只需 `add_log_to_buffer` 一次调用；但在崩溃恢复时，这条日志被 analyze 发现、redo 重做、或者因为该操作所属的事务未提交而被 undo 撤销。
 
 ## 日志与事务写集的区别
 

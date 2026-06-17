@@ -270,4 +270,4 @@ void QlManager::run_mutli_query(std::shared_ptr<Plan>& plan, Context* context) {
 
 **重点**：学习时不要只看单个算子，还要能说清楚这个算子是由哪个 Plan 转换来的、由谁驱动、结果被谁消费。
 
-上一节：[05-execution-detail.md](./05-execution-detail.md) | 下一节：[07-query-processing-frame-vs-reference.md](./07-query-processing-frame-vs-reference.md)
+上一节：[05b-hash-join.md](./05b-hash-join.md) | 下一节：[07-query-processing-frame-vs-reference.md](./07-query-processing-frame-vs-reference.md)

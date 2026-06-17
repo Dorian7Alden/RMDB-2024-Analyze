@@ -478,4 +478,4 @@ Execution 是查询处理的最终阶段，将逻辑计划变为物理操作。
 
 **框架学习重点**：10 个算子中有 7 个需要实现（SeqScan、IndexScan、NestedLoopJoin、Projection、Sort、Delete、Update），3 个需要从零创建（Aggregate、SortMergeJoin、PredicateManager）。
 
-上一节：[04-optimizer-detail.md](./04-optimizer-detail.md) | 下一节：[06-query-processing-interaction.md](./06-query-processing-interaction.md)
+上一节：[04-optimizer-detail.md](./04-optimizer-detail.md) | 下一节：[05b-hash-join.md](./05b-hash-join.md)
